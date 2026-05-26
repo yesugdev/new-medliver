@@ -1,0 +1,16 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: his-mongo
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: hisroot
+      MONGO_INITDB_ROOT_PASSWORD: hisrootpass
+      MONGO_INITDB_DATABASE: hospital_his
+    volumes:
+      - mongo-data:/data/db
+
+volumes:
+  mongo-data:

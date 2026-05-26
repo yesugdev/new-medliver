@@ -1,0 +1,30 @@
+{
+  "name": "hospital-his",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Hospital Information System for small clinics in Mongolia",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "postinstall": "npm --workspace @his/shared run build",
+    "build:shared": "npm --workspace @his/shared run build",
+    "dev": "npm-run-all --parallel dev:shared dev:api dev:web",
+    "dev:shared": "npm --workspace @his/shared run dev",
+    "dev:api": "npm --workspace apps/api run start:dev",
+    "dev:web": "npm --workspace apps/web run dev",
+    "build": "npm run build:shared && npm --workspace apps/api run build && npm --workspace apps/web run build",
+    "lint": "npm --workspace apps/api run lint && npm --workspace apps/web run lint",
+    "seed": "npm run build:shared && npm --workspace apps/api run seed",
+    "seed:lab": "npm run build:shared && npm --workspace apps/api run seed:lab",
+    "db:up": "docker compose up -d mongo",
+    "db:down": "docker compose down"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
