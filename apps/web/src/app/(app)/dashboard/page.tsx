@@ -15,12 +15,16 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  Settings,
+  ShieldCheck,
 } from "lucide-react";
 import { ROLE_LABELS_MN } from "@his/shared";
+import type { Role } from "@his/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/stores/auth-store";
+import type { DashboardStats } from "@his/shared";
 import { getDashboardStats } from "@/lib/stats-api";
 import { listMyPatients } from "@/lib/patients-api";
 import { formatMnt } from "@/lib/format";
@@ -28,6 +32,53 @@ import { calculateAge, formatDateMn } from "@/lib/utils";
 
 const PAGE_SIZE = 10;
 
+/* ─── Role stat definitions ─────────────────────────────────────────── */
+type StatKey = "totalPatients" | "todayAppointments" | "waitingPatients" | "todayVisits" | "todayRevenue" | "newPatientsThisWeek";
+
+interface StatDef {
+  key: StatKey;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  tone: string;
+  format?: "mnt";
+}
+
+const ALL_STATS: StatDef[] = [
+  { key: "totalPatients",       label: "Нийт өвчтөн",         icon: Users,        tone: "text-sky-600 bg-sky-50" },
+  { key: "todayAppointments",   label: "Өнөөдрийн цаг",        icon: CalendarClock, tone: "text-indigo-600 bg-indigo-50" },
+  { key: "waitingPatients",     label: "Хүлээж буй",           icon: ListOrdered,  tone: "text-amber-600 bg-amber-50" },
+  { key: "todayVisits",         label: "Өнөөдрийн үзлэг",      icon: Activity,     tone: "text-emerald-600 bg-emerald-50" },
+  { key: "todayRevenue",        label: "Өнөөдрийн орлого",     icon: Receipt,      tone: "text-rose-600 bg-rose-50",   format: "mnt" },
+  { key: "newPatientsThisWeek", label: "7 хоногт шинэ өвчтөн", icon: UserPlus,     tone: "text-purple-600 bg-purple-50" },
+];
+
+const ROLE_STATS: Record<Role, StatKey[]> = {
+  admin:     ["totalPatients", "todayAppointments", "waitingPatients", "todayVisits", "todayRevenue", "newPatientsThisWeek"],
+  manager:   ["totalPatients", "todayAppointments", "waitingPatients", "todayVisits", "todayRevenue", "newPatientsThisWeek"],
+  reception: ["totalPatients", "todayAppointments", "waitingPatients", "todayRevenue"],
+  doctor:    ["todayAppointments", "waitingPatients", "todayVisits"],
+  nurse:     ["waitingPatients", "todayVisits", "totalPatients"],
+};
+
+/* ─── Role quick-action definitions ────────────────────────────────── */
+interface ActionDef {
+  href: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  roles: Role[];
+}
+
+const QUICK_ACTIONS: ActionDef[] = [
+  { href: "/patients/new",   label: "Шинэ өвчтөн",  icon: Users,        roles: ["admin", "reception"] },
+  { href: "/appointments/new", label: "Цаг захиалах", icon: CalendarClock, roles: ["admin", "reception"] },
+  { href: "/queue",          label: "Дараалал",       icon: ListOrdered,  roles: ["admin", "doctor", "nurse"] },
+  { href: "/billing/new",    label: "Нэхэмжлэл",     icon: Receipt,      roles: ["admin", "reception"] },
+  { href: "/patients",       label: "Өвчтөнгүүд",    icon: Users,        roles: ["nurse"] },
+  { href: "/settings",       label: "Тохиргоо",      icon: Settings,     roles: ["admin"] },
+  { href: "/users",          label: "Хэрэглэгчид",   icon: ShieldCheck,  roles: ["admin"] },
+];
+
+/* ─── My patients panel (doctor only) ──────────────────────────────── */
 function MyPatientsPanel() {
   const [page, setPage]     = useState(1);
   const [search, setSearch] = useState("");
@@ -35,7 +86,7 @@ function MyPatientsPanel() {
 
   const { data, isLoading } = useQuery({
     queryKey: ["my-patients", page, search],
-    queryFn: () => listMyPatients({ page, pageSize: PAGE_SIZE, search: search || undefined }),
+    queryFn:  () => listMyPatients({ page, pageSize: PAGE_SIZE, search: search || undefined }),
     placeholderData: (prev) => prev,
   });
 
@@ -81,7 +132,7 @@ function MyPatientsPanel() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Өвчтөний код</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Код</th>
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Нэр</th>
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Нас / Хүйс</th>
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Утас</th>
@@ -96,15 +147,11 @@ function MyPatientsPanel() {
                     return (
                       <tr
                         key={p.id}
-                        className={`border-b border-border last:border-0 hover:bg-muted/20 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}
+                        className={`border-b border-border last:border-0 hover:bg-muted/20 transition-colors ${i % 2 !== 0 ? "bg-muted/10" : ""}`}
                       >
                         <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.patientCode}</td>
-                        <td className="px-4 py-3 font-medium">
-                          {p.lastName} {p.firstName}
-                        </td>
-                        <td className="px-4 py-3 text-muted-foreground">
-                          {age !== null ? `${age} нас` : "—"} · {genderLabel}
-                        </td>
+                        <td className="px-4 py-3 font-medium">{p.lastName} {p.firstName}</td>
+                        <td className="px-4 py-3 text-muted-foreground">{age !== null ? `${age} нас` : "—"} · {genderLabel}</td>
                         <td className="px-4 py-3 font-mono text-xs">{p.phone}</td>
                         <td className="px-4 py-3 text-xs text-muted-foreground">{formatDateMn(p.createdAt)}</td>
                         <td className="px-4 py-3 text-right">
@@ -125,13 +172,7 @@ function MyPatientsPanel() {
                 Нийт {data.total} өвчтөн · {page}/{totalPages} хуудас
               </span>
               <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-7 w-7"
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => p - 1)}
-                >
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
                 {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
@@ -150,13 +191,7 @@ function MyPatientsPanel() {
                     </Button>
                   );
                 })}
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-7 w-7"
-                  disabled={page >= totalPages}
-                  onClick={() => setPage((p) => p + 1)}
-                >
+                <Button variant="outline" size="icon" className="h-7 w-7" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
@@ -168,62 +203,64 @@ function MyPatientsPanel() {
   );
 }
 
+/* ─── Stat card ─────────────────────────────────────────────────────── */
+function StatCard({ def, data }: { def: StatDef; data?: DashboardStats }) {
+  const Icon = def.icon;
+  const raw = data?.[def.key] ?? undefined;
+  const value = raw === undefined ? "—" : def.format === "mnt" ? formatMnt(raw as number) : raw;
+
+  return (
+    <Card>
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">{def.label}</span>
+          <div className={`h-8 w-8 rounded-md flex items-center justify-center ${def.tone}`}>
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
+        <div className="mt-3 text-2xl font-semibold">{value}</div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ─── Role description chips ─────────────────────────────────────────── */
+const ROLE_DESCRIPTION: Record<Role, string> = {
+  admin:     "Бүх хэсэгт хандах эрхтэй",
+  manager:   "Тайлан болон удирдлагын хэсэгт хандах эрхтэй",
+  reception: "Өвчтөн бүртгэл, цаг захиалга, нэхэмжлэл",
+  doctor:    "Үзлэг, өвчтөний мэдээлэл, EMR",
+  nurse:     "Дараалал болон үзлэгийн туслалцаа",
+};
+
+/* ─── Main dashboard ─────────────────────────────────────────────────── */
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard-stats"],
-    queryFn: getDashboardStats,
+    queryFn:  getDashboardStats,
     refetchInterval: 30_000,
   });
 
   if (!user) return null;
 
-  const stats = [
-    {
-      label: "Нийт өвчтөн",
-      value: data?.totalPatients ?? "—",
-      icon: Users,
-      tone: "text-sky-600 bg-sky-50",
-    },
-    {
-      label: "Өнөөдрийн цаг",
-      value: data?.todayAppointments ?? "—",
-      icon: CalendarClock,
-      tone: "text-indigo-600 bg-indigo-50",
-    },
-    {
-      label: "Хүлээж буй",
-      value: data?.waitingPatients ?? "—",
-      icon: ListOrdered,
-      tone: "text-amber-600 bg-amber-50",
-    },
-    {
-      label: "Өнөөдрийн үзлэг",
-      value: data?.todayVisits ?? "—",
-      icon: Activity,
-      tone: "text-emerald-600 bg-emerald-50",
-    },
-    {
-      label: "Өнөөдрийн орлого",
-      value: data ? formatMnt(data.todayRevenue) : "—",
-      icon: Receipt,
-      tone: "text-rose-600 bg-rose-50",
-    },
-    {
-      label: "7 хоногт шинэ өвчтөн",
-      value: data?.newPatientsThisWeek ?? "—",
-      icon: UserPlus,
-      tone: "text-purple-600 bg-purple-50",
-    },
-  ];
+  const role = user.role as Role;
+  const statKeys = ROLE_STATS[role] ?? ROLE_STATS.admin;
+  const statDefs = ALL_STATS.filter((s) => statKeys.includes(s.key));
+  const actions  = QUICK_ACTIONS.filter((a) => a.roles.includes(role));
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Хяналтын самбар</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Сайн байна уу, {user.fullName} · {ROLE_LABELS_MN[user.role]}
+            Сайн байна уу, <strong>{user.fullName}</strong> ·{" "}
+            <span className="inline-flex items-center gap-1">
+              {ROLE_LABELS_MN[role]}
+              <span className="text-muted-foreground/60">— {ROLE_DESCRIPTION[role]}</span>
+            </span>
           </p>
         </div>
         {isLoading ? (
@@ -231,73 +268,44 @@ export default function DashboardPage() {
         ) : (
           <span className="text-xs text-muted-foreground flex items-center gap-1">
             <TrendingUp className="h-3 w-3" />
-            30 секунд тутамд шинэчлэгдэнэ
+            30с тутамд шинэчлэгдэнэ
           </span>
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {stats.map((s) => {
-          const Icon = s.icon;
-          return (
-            <Card key={s.label}>
-              <CardContent className="p-5">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">{s.label}</span>
-                  <div className={`h-8 w-8 rounded-md flex items-center justify-center ${s.tone}`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                </div>
-                <div className="mt-3 text-2xl font-semibold">{s.value}</div>
-              </CardContent>
-            </Card>
-          );
-        })}
+      {/* Role-specific stat cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {statDefs.map((def) => (
+          <StatCard key={def.key} def={def} data={data} />
+        ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Хурдан үйлдэл</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {(user.role === "admin" || user.role === "reception") && (
-              <QuickAction href="/patients/new" label="Шинэ өвчтөн" icon={Users} />
-            )}
-            {(user.role === "admin" || user.role === "reception") && (
-              <QuickAction href="/appointments/new" label="Цаг захиалах" icon={CalendarClock} />
-            )}
-            {(user.role === "doctor" || user.role === "nurse" || user.role === "admin") && (
-              <QuickAction href="/queue" label="Дараалал" icon={ListOrdered} />
-            )}
-            {(user.role === "admin" || user.role === "reception") && (
-              <QuickAction href="/billing/new" label="Нэхэмжлэл" icon={Receipt} />
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Quick actions */}
+      {actions.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Хурдан үйлдэл</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {actions.map((a) => {
+                const Icon = a.icon;
+                return (
+                  <Button key={a.href} asChild variant="outline" className="h-auto py-4 flex-col gap-2">
+                    <Link href={a.href}>
+                      <Icon className="h-5 w-5" />
+                      <span>{a.label}</span>
+                    </Link>
+                  </Button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Doctor: my patients list */}
-      {user.role === "doctor" && <MyPatientsPanel />}
+      {role === "doctor" && <MyPatientsPanel />}
     </div>
-  );
-}
-
-function QuickAction({
-  href,
-  label,
-  icon: Icon,
-}: {
-  href: string;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}) {
-  return (
-    <Button asChild variant="outline" className="h-auto py-4 flex-col gap-2">
-      <Link href={href}>
-        <Icon className="h-5 w-5" />
-        <span>{label}</span>
-      </Link>
-    </Button>
   );
 }
