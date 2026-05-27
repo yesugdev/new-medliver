@@ -4,10 +4,10 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Loader2, Plus, Save, Trash2, CheckCircle2, Lock, User as UserIcon,
+  Loader2, Save, CheckCircle2, Lock, User as UserIcon,
   ArrowLeft, ChevronDown, ChevronUp, FileText,
 } from "lucide-react";
-import type { Prescription, EmrTabConfig, EmrSectionConfig, EmrFieldConfig } from "@his/shared";
+import type { EmrTabConfig, EmrSectionConfig, EmrFieldConfig } from "@his/shared";
 import { VISIT_STATUS_LABELS_MN } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +24,7 @@ import { extractApiError } from "@/lib/api";
 import { formatDateTimeMn } from "@/lib/utils";
 import { VISIT_TONE } from "@/lib/status-tones";
 import { PatientVitals } from "@/components/patient-vitals";
+import { PatientTreatment } from "@/components/patient-treatment";
 
 /* ─── Read-only field ────────────────────────────────────────────────── */
 function ReadField({ label, value }: { label: string; value?: string }) {
@@ -340,7 +341,6 @@ function VisitForm() {
   const [diagnosis,      setDiagnosis]      = useState("");
   const [treatment,      setTreatment]      = useState("");
   const [notes,          setNotes]          = useState("");
-  const [prescriptions,  setPrescriptions]  = useState<Prescription[]>([]);
 
   /* Tab 2+ clinical notes: Record<sectionId, Record<fieldId, value>> */
   const [clinicalNotes, setClinicalNotes] = useState<Record<string, Record<string, string | number | boolean>>>({});
@@ -377,7 +377,6 @@ function VisitForm() {
       setDiagnosis(v.diagnosis ?? "");
       setTreatment(v.treatment ?? "");
       setNotes(v.notes ?? "");
-      setPrescriptions(v.prescriptions ?? []);
       setClinicalNotes((v.clinicalNotes as Record<string, Record<string, string | number | boolean>>) ?? {});
     }
   }, [existingVisit.data]);
@@ -430,7 +429,6 @@ function VisitForm() {
         diagnosis,
         treatment,
         notes,
-        prescriptions,
         clinicalNotes,
         status,
       }),
@@ -601,130 +599,8 @@ function VisitForm() {
             </CardContent>
           </Card>
 
-          {/* Prescriptions */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Эмийн жор</CardTitle>
-              {canEdit && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() =>
-                    setPrescriptions([
-                      ...prescriptions,
-                      { medication: "", dosage: "", frequency: "", duration: "" },
-                    ])
-                  }
-                >
-                  <Plus className="h-4 w-4" />
-                  Жор нэмэх
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {prescriptions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Жор нэмээгүй</p>
-              ) : canEdit ? (
-                prescriptions.map((p, idx) => (
-                  <div
-                    key={idx}
-                    className="grid grid-cols-12 gap-2 items-start border rounded-md p-3"
-                  >
-                    <div className="col-span-12 md:col-span-3">
-                      <Label className="text-xs">Эмийн нэр</Label>
-                      <Input
-                        value={p.medication}
-                        onChange={(e) => {
-                          const n = [...prescriptions];
-                          n[idx] = { ...n[idx], medication: e.target.value };
-                          setPrescriptions(n);
-                        }}
-                      />
-                    </div>
-                    <div className="col-span-6 md:col-span-2">
-                      <Label className="text-xs">Тун</Label>
-                      <Input
-                        placeholder="500мг"
-                        value={p.dosage}
-                        onChange={(e) => {
-                          const n = [...prescriptions];
-                          n[idx] = { ...n[idx], dosage: e.target.value };
-                          setPrescriptions(n);
-                        }}
-                      />
-                    </div>
-                    <div className="col-span-6 md:col-span-2">
-                      <Label className="text-xs">Давтамж</Label>
-                      <Input
-                        placeholder="3 удаа"
-                        value={p.frequency}
-                        onChange={(e) => {
-                          const n = [...prescriptions];
-                          n[idx] = { ...n[idx], frequency: e.target.value };
-                          setPrescriptions(n);
-                        }}
-                      />
-                    </div>
-                    <div className="col-span-6 md:col-span-2">
-                      <Label className="text-xs">Хугацаа</Label>
-                      <Input
-                        placeholder="7 хоног"
-                        value={p.duration}
-                        onChange={(e) => {
-                          const n = [...prescriptions];
-                          n[idx] = { ...n[idx], duration: e.target.value };
-                          setPrescriptions(n);
-                        }}
-                      />
-                    </div>
-                    <div className="col-span-5 md:col-span-2">
-                      <Label className="text-xs">Заавар</Label>
-                      <Input
-                        value={p.instructions ?? ""}
-                        onChange={(e) => {
-                          const n = [...prescriptions];
-                          n[idx] = { ...n[idx], instructions: e.target.value };
-                          setPrescriptions(n);
-                        }}
-                      />
-                    </div>
-                    <div className="col-span-1 flex items-end justify-end pt-5">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() =>
-                          setPrescriptions(prescriptions.filter((_, i) => i !== idx))
-                        }
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="space-y-2">
-                  {prescriptions.map((p, idx) => (
-                    <div
-                      key={idx}
-                      className="rounded-md border border-border bg-muted/20 px-4 py-2.5 text-sm"
-                    >
-                      <span className="font-medium">{p.medication}</span>
-                      {p.dosage && (
-                        <span className="ml-2 text-muted-foreground">{p.dosage}</span>
-                      )}
-                      {p.frequency && <span className="ml-2">· {p.frequency}</span>}
-                      {p.duration && <span className="ml-2">· {p.duration}</span>}
-                      {p.instructions && (
-                        <div className="text-xs text-muted-foreground mt-0.5">
-                          {p.instructions}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {/* Treatment — integrated module */}
+          <PatientTreatment patientId={patientId} defaultOpen />
 
           {/* Notes */}
           <Card>

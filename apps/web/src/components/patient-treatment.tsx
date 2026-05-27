@@ -365,9 +365,15 @@ function TreatmentCard({
 }
 
 /* ─── Main component ─────────────────────────────────────────────── */
-export function PatientTreatment({ patientId }: { patientId: string }) {
+export function PatientTreatment({
+  patientId,
+  defaultOpen = false,
+}: {
+  patientId: string;
+  defaultOpen?: boolean;
+}) {
   const user = useAuthStore((s) => s.user);
-  const [open, setOpen]         = useState(false);
+  const [open, setOpen]           = useState(defaultOpen);
   const [activeTab, setActiveTab] = useState<"list" | "add">("list");
 
   const canAdd    = user && ["admin", "doctor", "nurse"].includes(user.role);
