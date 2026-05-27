@@ -45,10 +45,10 @@ function PrintInvoice({ inv }: { inv: Invoice }) {
     >
       {/* Header */}
       <div style={{ textAlign: "center", marginBottom: "24px", borderBottom: "2px solid #000", paddingBottom: "12px" }}>
-        <div style={{ fontSize: "20px", fontWeight: "bold", letterSpacing: "1px" }}>
-          ЭМНЭЛЭГИЙН НЭХЭМЖЛЭЛ
+        <div style={{ fontSize: "24px", fontWeight: "bold", letterSpacing: "2px" }}>
+          MEDLIVER
         </div>
-        <div style={{ fontSize: "12px", color: "#555", marginTop: "4px" }}>HOSPITAL INVOICE</div>
+        <div style={{ fontSize: "12px", color: "#555", marginTop: "4px" }}>НЭХЭМЖЛЭЛ / INVOICE</div>
       </div>
 
       {/* Meta */}
