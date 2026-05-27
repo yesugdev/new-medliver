@@ -339,7 +339,6 @@ function VisitForm() {
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [symptoms,       setSymptoms]       = useState("");
   const [diagnosis,      setDiagnosis]      = useState("");
-  const [treatment,      setTreatment]      = useState("");
   const [notes,          setNotes]          = useState("");
 
   /* Tab 2+ clinical notes: Record<sectionId, Record<fieldId, value>> */
@@ -375,7 +374,6 @@ function VisitForm() {
       setChiefComplaint(v.chiefComplaint ?? "");
       setSymptoms(v.symptoms ?? "");
       setDiagnosis(v.diagnosis ?? "");
-      setTreatment(v.treatment ?? "");
       setNotes(v.notes ?? "");
       setClinicalNotes((v.clinicalNotes as Record<string, Record<string, string | number | boolean>>) ?? {});
     }
@@ -427,7 +425,6 @@ function VisitForm() {
         chiefComplaint,
         symptoms,
         diagnosis,
-        treatment,
         notes,
         clinicalNotes,
         status,
@@ -579,21 +576,12 @@ function VisitForm() {
                       onChange={(e) => setDiagnosis(e.target.value)}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Эмчилгээ</Label>
-                    <Textarea
-                      rows={3}
-                      value={treatment}
-                      onChange={(e) => setTreatment(e.target.value)}
-                    />
-                  </div>
                 </>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <ReadField label="Зовиур"       value={chiefComplaint} />
                   <ReadField label="Шинж тэмдэг"  value={symptoms} />
                   <ReadField label="Онош"          value={diagnosis} />
-                  <ReadField label="Эмчилгээ"      value={treatment} />
                 </div>
               )}
             </CardContent>
