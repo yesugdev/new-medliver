@@ -61,7 +61,7 @@ export class InvoicesController {
   constructor(private readonly invoices: InvoicesService) {}
 
   @Get()
-  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION, ROLES.DOCTOR, ROLES.NURSE)
   list(@Query() q: ListInvoicesQuery) {
     return this.invoices.list({
       patientId: q.patientId,
@@ -72,7 +72,7 @@ export class InvoicesController {
   }
 
   @Get(":id")
-  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION, ROLES.DOCTOR, ROLES.NURSE)
   get(@Param("id") id: string) {
     return this.invoices.getById(id);
   }
