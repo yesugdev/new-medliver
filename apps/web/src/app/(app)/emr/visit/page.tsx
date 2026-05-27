@@ -24,7 +24,6 @@ import { extractApiError } from "@/lib/api";
 import { formatDateTimeMn } from "@/lib/utils";
 import { VISIT_TONE } from "@/lib/status-tones";
 import { PatientVitals } from "@/components/patient-vitals";
-import { PatientTreatment } from "@/components/patient-treatment";
 
 /* ─── Read-only field ────────────────────────────────────────────────── */
 function ReadField({ label, value }: { label: string; value?: string }) {
@@ -598,9 +597,6 @@ function VisitForm() {
               )}
             </CardContent>
           </Card>
-
-          {/* Treatment — integrated module */}
-          <PatientTreatment patientId={patientId} defaultOpen />
 
           {/* Notes */}
           <Card>
