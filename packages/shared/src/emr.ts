@@ -78,7 +78,7 @@ export interface Visit {
 
 /* ─── EMR Template (admin-configurable) ────────────────────────────── */
 
-export type EmrFieldType = "text" | "textarea" | "select" | "number" | "radio" | "checkbox";
+export type EmrFieldType = "text" | "textarea" | "select" | "number" | "radio" | "checkbox" | "separator";
 
 export interface EmrFieldConfig {
   id: string;

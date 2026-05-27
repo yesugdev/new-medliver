@@ -51,6 +51,21 @@ function DynamicField({
 }) {
   const strVal = value === undefined || value === null ? "" : String(value);
 
+  /* Separator — same in edit and read-only mode */
+  if (field.type === "separator") {
+    return (
+      <div className="md:col-span-2 flex items-center gap-3 py-1">
+        <div className="flex-1 h-px bg-border" />
+        {field.label && (
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide whitespace-nowrap">
+            {field.label}
+          </span>
+        )}
+        <div className="flex-1 h-px bg-border" />
+      </div>
+    );
+  }
+
   if (readOnly) {
     if (field.type === "checkbox") {
       return (
@@ -222,7 +237,7 @@ function AccordionSection({
               {section.fields.map((field) => (
                 <div
                   key={field.id}
-                  className={field.type === "textarea" || field.type === "radio" ? "md:col-span-2" : ""}
+                  className={["textarea", "radio", "separator"].includes(field.type) ? "md:col-span-2" : ""}
                 >
                   <DynamicField
                     field={field}

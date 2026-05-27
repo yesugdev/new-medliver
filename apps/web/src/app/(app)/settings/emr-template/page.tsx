@@ -24,12 +24,13 @@ import { extractApiError } from "@/lib/api";
 const uid = () => Math.random().toString(36).slice(2, 10);
 
 const FIELD_TYPE_LABELS: Record<EmrFieldType, string> = {
-  text:     "Текст",
-  textarea: "Урт текст",
-  select:   "Dropdown",
-  number:   "Тоо",
-  radio:    "Radio",
-  checkbox: "Checkbox",
+  text:      "Текст",
+  textarea:  "Урт текст",
+  select:    "Dropdown",
+  number:    "Тоо",
+  radio:     "Radio",
+  checkbox:  "Checkbox",
+  separator: "Тусгаарлах текст",
 };
 
 /* ─── FieldEditor ────────────────────────────────────────────────── */
@@ -94,15 +95,17 @@ function FieldEditor({
 
       {/* Field body */}
       <div className="p-3 space-y-3">
-        {/* Label + Type */}
+        {/* Label + Type — always shown */}
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <Label className="text-xs mb-1 block">Нэр (label)</Label>
+            <Label className="text-xs mb-1 block">
+              {field.type === "separator" ? "Тусгаарлах текст" : "Нэр (label)"}
+            </Label>
             <Input
               value={field.label}
               onChange={(e) => onChange({ ...field, label: e.target.value })}
               className="h-8 text-sm"
-              placeholder="Талбарын нэр"
+              placeholder={field.type === "separator" ? "Гарчиг текст..." : "Талбарын нэр"}
             />
           </div>
           <div>
@@ -119,37 +122,52 @@ function FieldEditor({
           </div>
         </div>
 
-        {/* Unit + Placeholder */}
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label className="text-xs mb-1 block">Нэгж <span className="text-muted-foreground">(unit)</span></Label>
-            <Input
-              value={field.unit ?? ""}
-              onChange={(e) => onChange({ ...field, unit: e.target.value })}
-              className="h-8 text-sm"
-              placeholder="мг, °C, ..."
-            />
+        {/* Separator preview — only for separator type */}
+        {field.type === "separator" && (
+          <div className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2 border border-dashed border-border">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs font-semibold text-muted-foreground whitespace-nowrap">
+              {field.label || "Тусгаарлах текст"}
+            </span>
+            <div className="flex-1 h-px bg-border" />
           </div>
-          <div>
-            <Label className="text-xs mb-1 block">Placeholder</Label>
-            <Input
-              value={field.placeholder ?? ""}
-              onChange={(e) => onChange({ ...field, placeholder: e.target.value })}
-              className="h-8 text-sm"
-            />
-          </div>
-        </div>
+        )}
 
-        {/* Required checkbox */}
-        <label className="flex items-center gap-2 text-xs cursor-pointer select-none w-fit">
-          <input
-            type="checkbox"
-            checked={field.required ?? false}
-            onChange={(e) => onChange({ ...field, required: e.target.checked })}
-            className="rounded accent-primary"
-          />
-          <span className="font-medium">Заавал бөглөх</span>
-        </label>
+        {/* Unit + Placeholder — not shown for separator */}
+        {field.type !== "separator" && (
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <Label className="text-xs mb-1 block">Нэгж <span className="text-muted-foreground">(unit)</span></Label>
+              <Input
+                value={field.unit ?? ""}
+                onChange={(e) => onChange({ ...field, unit: e.target.value })}
+                className="h-8 text-sm"
+                placeholder="мг, °C, ..."
+              />
+            </div>
+            <div>
+              <Label className="text-xs mb-1 block">Placeholder</Label>
+              <Input
+                value={field.placeholder ?? ""}
+                onChange={(e) => onChange({ ...field, placeholder: e.target.value })}
+                className="h-8 text-sm"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Required checkbox — not shown for separator */}
+        {field.type !== "separator" && (
+          <label className="flex items-center gap-2 text-xs cursor-pointer select-none w-fit">
+            <input
+              type="checkbox"
+              checked={field.required ?? false}
+              onChange={(e) => onChange({ ...field, required: e.target.checked })}
+              className="rounded accent-primary"
+            />
+            <span className="font-medium">Заавал бөглөх</span>
+          </label>
+        )}
 
         {/* Options (select / radio / checkbox) */}
         {hasOptions && (
