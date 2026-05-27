@@ -14,16 +14,19 @@ import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { PatientsService } from "./patients.service";
 import { MedicalHistoryService } from "./medical-history.service";
+import { TreatmentService } from "./treatment.service";
 import { CreatePatientDto } from "./dto/create-patient.dto";
 import { UpdatePatientDto } from "./dto/update-patient.dto";
 import { ListPatientsDto } from "./dto/list-patients.dto";
 import { CreateMedicalHistoryDto } from "./dto/create-medical-history.dto";
+import { CreateTreatmentDto } from "./dto/create-treatment.dto";
 
 @Controller("patients")
 export class PatientsController {
   constructor(
     private readonly patients: PatientsService,
     private readonly medHistory: MedicalHistoryService,
+    private readonly treatments: TreatmentService,
   ) {}
 
   @Get()
@@ -82,6 +85,30 @@ export class PatientsController {
   @Roles(ROLES.ADMIN, ROLES.DOCTOR)
   async deleteMedicalHistory(@Param("historyId") historyId: string) {
     await this.medHistory.deleteRecord(historyId);
+    return { success: true };
+  }
+
+  /* ── Treatments ─────────────────────────────────────────────────── */
+  @Get(":id/treatments")
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION)
+  listTreatments(@Param("id") id: string) {
+    return this.treatments.listByPatient(id);
+  }
+
+  @Post(":id/treatments")
+  @Roles(ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE)
+  createTreatment(
+    @Param("id") id: string,
+    @Body() dto: CreateTreatmentDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.treatments.create(id, dto, user);
+  }
+
+  @Delete(":patientId/treatments/:treatmentId")
+  @Roles(ROLES.ADMIN, ROLES.DOCTOR)
+  async deleteTreatment(@Param("treatmentId") treatmentId: string) {
+    await this.treatments.deleteRecord(treatmentId);
     return { success: true };
   }
 }

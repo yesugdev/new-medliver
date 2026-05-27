@@ -2,8 +2,10 @@ import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { Patient, PatientSchema } from "./patient.schema";
 import { MedicalHistory, MedicalHistorySchema } from "./medical-history.schema";
+import { Treatment, TreatmentSchema } from "./treatment.schema";
 import { PatientsService } from "./patients.service";
 import { MedicalHistoryService } from "./medical-history.service";
+import { TreatmentService } from "./treatment.service";
 import { PatientsController } from "./patients.controller";
 
 @Module({
@@ -11,10 +13,11 @@ import { PatientsController } from "./patients.controller";
     MongooseModule.forFeature([
       { name: Patient.name,        schema: PatientSchema        },
       { name: MedicalHistory.name, schema: MedicalHistorySchema },
+      { name: Treatment.name,      schema: TreatmentSchema      },
     ]),
   ],
   controllers: [PatientsController],
-  providers: [PatientsService, MedicalHistoryService],
-  exports: [PatientsService, MedicalHistoryService],
+  providers: [PatientsService, MedicalHistoryService, TreatmentService],
+  exports: [PatientsService, MedicalHistoryService, TreatmentService],
 })
 export class PatientsModule {}
