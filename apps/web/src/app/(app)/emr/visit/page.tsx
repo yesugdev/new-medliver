@@ -470,7 +470,7 @@ function VisitForm() {
 
   /* ── Render ───────────────────────────────────────────────────────── */
   return (
-    <div className="space-y-5 max-w-5xl">
+    <div className="space-y-5">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-2">
