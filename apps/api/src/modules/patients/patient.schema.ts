@@ -64,6 +64,12 @@ export class Patient {
 
   @Prop({ type: String, index: true })
   createdBy?: string;
+
+  @Prop({ type: String, index: true })
+  attendingDoctorId?: string;
+
+  @Prop({ type: String, trim: true })
+  attendingDoctorName?: string;
 }
 
 export const PatientSchema = SchemaFactory.createForClass(Patient);

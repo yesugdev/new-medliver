@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -11,13 +12,161 @@ import {
   UserPlus,
   TrendingUp,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Search,
 } from "lucide-react";
 import { ROLE_LABELS_MN } from "@his/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/stores/auth-store";
 import { getDashboardStats } from "@/lib/stats-api";
+import { listMyPatients } from "@/lib/patients-api";
 import { formatMnt } from "@/lib/format";
+import { calculateAge, formatDateMn } from "@/lib/utils";
+
+const PAGE_SIZE = 10;
+
+function MyPatientsPanel() {
+  const [page, setPage]     = useState(1);
+  const [search, setSearch] = useState("");
+  const [inputVal, setInputVal] = useState("");
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["my-patients", page, search],
+    queryFn: () => listMyPatients({ page, pageSize: PAGE_SIZE, search: search || undefined }),
+    placeholderData: (prev) => prev,
+  });
+
+  const totalPages = data ? Math.ceil(data.total / PAGE_SIZE) : 1;
+
+  function handleSearch(e: React.FormEvent) {
+    e.preventDefault();
+    setPage(1);
+    setSearch(inputVal);
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between gap-4">
+          <CardTitle>Миний өвчтөнгүүд</CardTitle>
+          <form onSubmit={handleSearch} className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+              <Input
+                value={inputVal}
+                onChange={(e) => setInputVal(e.target.value)}
+                placeholder="Хайх..."
+                className="pl-8 h-8 text-sm w-48"
+              />
+            </div>
+            <Button type="submit" size="sm" variant="outline" className="h-8">Хайх</Button>
+          </form>
+        </div>
+      </CardHeader>
+      <CardContent className="p-0">
+        {isLoading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : !data || data.items.length === 0 ? (
+          <div className="text-center py-10 text-sm text-muted-foreground">
+            {search ? "Хайлтад тохирох өвчтөн олдсонгүй" : "Танд харьяалагдах өвчтөн байхгүй байна"}
+          </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Өвчтөний код</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Нэр</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Нас / Хүйс</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Утас</th>
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Бүртгэсэн</th>
+                    <th className="px-4 py-2.5" />
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.items.map((p, i) => {
+                    const age = calculateAge(p.birthDate);
+                    const genderLabel = p.gender === "male" ? "Эр" : p.gender === "female" ? "Эм" : "Бусад";
+                    return (
+                      <tr
+                        key={p.id}
+                        className={`border-b border-border last:border-0 hover:bg-muted/20 transition-colors ${i % 2 === 0 ? "" : "bg-muted/10"}`}
+                      >
+                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{p.patientCode}</td>
+                        <td className="px-4 py-3 font-medium">
+                          {p.lastName} {p.firstName}
+                        </td>
+                        <td className="px-4 py-3 text-muted-foreground">
+                          {age !== null ? `${age} нас` : "—"} · {genderLabel}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-xs">{p.phone}</td>
+                        <td className="px-4 py-3 text-xs text-muted-foreground">{formatDateMn(p.createdAt)}</td>
+                        <td className="px-4 py-3 text-right">
+                          <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
+                            <Link href={`/patients/${p.id}`}>Дэлгэрэнгүй</Link>
+                          </Button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+              <span className="text-xs text-muted-foreground">
+                Нийт {data.total} өвчтөн · {page}/{totalPages} хуудас
+              </span>
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => {
+                  const start = Math.max(1, Math.min(page - 2, totalPages - 4));
+                  const pageNum = start + i;
+                  if (pageNum > totalPages) return null;
+                  return (
+                    <Button
+                      key={pageNum}
+                      variant={pageNum === page ? "default" : "outline"}
+                      size="icon"
+                      className="h-7 w-7 text-xs"
+                      onClick={() => setPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-7 w-7"
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -127,6 +276,9 @@ export default function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Doctor: my patients list */}
+      {user.role === "doctor" && <MyPatientsPanel />}
     </div>
   );
 }

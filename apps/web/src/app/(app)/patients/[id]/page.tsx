@@ -119,6 +119,9 @@ export default function PatientDetailPage({
             {patient.bloodType ? (
               <InfoRow label="Цусны бүлэг" value={patient.bloodType} />
             ) : null}
+            {patient.attendingDoctorName ? (
+              <InfoRow label="Хяналтын эмч" value={patient.attendingDoctorName} />
+            ) : null}
           </CardContent>
         </Card>
 

@@ -11,6 +11,7 @@ import { useToast } from "@/components/ui/toast";
 import { PatientForm, type PatientFormValues } from "@/components/patient-form";
 import { getPatient, updatePatient } from "@/lib/patients-api";
 import { extractApiError } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth-store";
 
 export default function EditPatientPage({
   params,
@@ -21,6 +22,8 @@ export default function EditPatientPage({
   const router = useRouter();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const user = useAuthStore((s) => s.user);
+  const canSetDoctor = user?.role === "admin" || user?.role === "reception";
 
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", id],
@@ -93,10 +96,13 @@ export default function EditPatientPage({
               emergencyRelation: patient.emergencyContact?.relation ?? "",
               emergencyPhone: patient.emergencyContact?.phone ?? "",
               notes: patient.notes ?? "",
+              attendingDoctorId: patient.attendingDoctorId ?? "",
+              attendingDoctorName: patient.attendingDoctorName ?? "",
             }}
             onSubmit={(values) => mutation.mutate(values)}
             submitting={mutation.isPending}
             submitLabel="Хадгалах"
+            canSetDoctor={canSetDoctor}
           />
         </CardContent>
       </Card>

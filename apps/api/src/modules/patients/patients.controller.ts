@@ -35,6 +35,12 @@ export class PatientsController {
     return this.patients.list(query);
   }
 
+  @Get("my")
+  @Roles(ROLES.DOCTOR)
+  myPatients(@Query() query: ListPatientsDto, @CurrentUser() user: AuthUser) {
+    return this.patients.list({ ...query, attendingDoctorId: user.id });
+  }
+
   @Get(":id")
   @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION, ROLES.DOCTOR, ROLES.NURSE)
   get(@Param("id") id: string) {

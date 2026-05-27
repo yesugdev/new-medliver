@@ -28,6 +28,8 @@ export interface Patient {
   chronicConditions?: string[];
   emergencyContact?: EmergencyContact;
   notes?: string;
+  attendingDoctorId?: string;
+  attendingDoctorName?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -46,6 +48,8 @@ export interface CreatePatientInput {
   chronicConditions?: string[];
   emergencyContact?: EmergencyContact;
   notes?: string;
+  attendingDoctorId?: string;
+  attendingDoctorName?: string;
 }
 
 export interface PatientListResponse {

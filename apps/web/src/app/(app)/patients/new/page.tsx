@@ -10,11 +10,14 @@ import { useToast } from "@/components/ui/toast";
 import { PatientForm, type PatientFormValues } from "@/components/patient-form";
 import { createPatient } from "@/lib/patients-api";
 import { extractApiError } from "@/lib/api";
+import { useAuthStore } from "@/stores/auth-store";
 
 export default function NewPatientPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const { toast } = useToast();
+  const user = useAuthStore((s) => s.user);
+  const canSetDoctor = user?.role === "admin" || user?.role === "reception";
 
   const mutation = useMutation({
     mutationFn: (payload: PatientFormValues) => createPatient(payload),
@@ -61,6 +64,7 @@ export default function NewPatientPage() {
             onSubmit={(values) => mutation.mutate(values)}
             submitting={mutation.isPending}
             submitLabel="Бүртгэх"
+            canSetDoctor={canSetDoctor}
           />
         </CardContent>
       </Card>

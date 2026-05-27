@@ -22,4 +22,8 @@ export class ListPatientsDto {
   @Min(1)
   @Max(100)
   pageSize?: number = 20;
+
+  @IsOptional()
+  @IsString()
+  attendingDoctorId?: string;
 }

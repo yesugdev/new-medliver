@@ -38,6 +38,8 @@ export class PatientsService {
           }
         : undefined,
       notes: doc.notes,
+      attendingDoctorId: doc.attendingDoctorId,
+      attendingDoctorName: doc.attendingDoctorName,
       createdAt: (doc as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
       updatedAt: (doc as any).updatedAt?.toISOString?.() ?? new Date().toISOString(),
     };
@@ -103,6 +105,10 @@ export class PatientsService {
 
     if (query.gender) {
       filter.gender = query.gender;
+    }
+
+    if (query.attendingDoctorId) {
+      filter.attendingDoctorId = query.attendingDoctorId;
     }
 
     const [items, total] = await Promise.all([

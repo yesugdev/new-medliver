@@ -93,4 +93,13 @@ export class CreatePatientDto {
   @IsString()
   @MaxLength(2000)
   notes?: string;
+
+  @IsOptional()
+  @IsString()
+  attendingDoctorId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  attendingDoctorName?: string;
 }

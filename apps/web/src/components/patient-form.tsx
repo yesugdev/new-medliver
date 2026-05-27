@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { listDoctors } from "@/lib/users-api";
 
 const phoneRegex = /^[0-9+\-\s()]{6,20}$/;
 
@@ -62,6 +65,8 @@ export interface PatientFormValues {
   chronicConditions?: string[];
   emergencyContact?: { name: string; relation: string; phone: string };
   notes?: string;
+  attendingDoctorId?: string;
+  attendingDoctorName?: string;
 }
 
 export function PatientForm({
@@ -69,11 +74,13 @@ export function PatientForm({
   onSubmit,
   submitting,
   submitLabel,
+  canSetDoctor = false,
 }: {
-  defaultValues?: Partial<FormSchema>;
+  defaultValues?: Partial<FormSchema & { attendingDoctorId?: string; attendingDoctorName?: string }>;
   onSubmit: (values: PatientFormValues) => void;
   submitting?: boolean;
   submitLabel: string;
+  canSetDoctor?: boolean;
 }) {
   const form = useForm<FormSchema>({
     resolver: zodResolver(schema),
@@ -106,6 +113,16 @@ export function PatientForm({
   } = form;
 
   const gender = watch("gender");
+
+  const [attendingDoctorId, setAttendingDoctorId] = useState(defaultValues?.attendingDoctorId ?? "");
+  const [attendingDoctorName, setAttendingDoctorName] = useState(defaultValues?.attendingDoctorName ?? "");
+
+  const { data: doctors = [] } = useQuery({
+    queryKey: ["doctors"],
+    queryFn: listDoctors,
+    enabled: canSetDoctor,
+    staleTime: 60_000,
+  });
 
   const submit = handleSubmit((values) => {
     const allergies = (values.allergiesText ?? "")
@@ -140,6 +157,8 @@ export function PatientForm({
       chronicConditions: chronicConditions.length ? chronicConditions : undefined,
       emergencyContact,
       notes: values.notes || undefined,
+      attendingDoctorId: attendingDoctorId || undefined,
+      attendingDoctorName: attendingDoctorName || undefined,
     });
   });
 
@@ -224,6 +243,34 @@ export function PatientForm({
           <Textarea rows={3} {...register("notes")} />
         </Field>
       </section>
+
+      {canSetDoctor && (
+        <section className="space-y-4">
+          <h3 className="text-sm font-semibold">Хяналтын эмч</h3>
+          <Field label="Хяналтын эмч">
+            <Select
+              value={attendingDoctorId}
+              onValueChange={(val) => {
+                setAttendingDoctorId(val);
+                const doc = doctors.find((d) => d.id === val);
+                setAttendingDoctorName(doc?.fullName ?? "");
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="— Сонгох —" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">— Хяналтын эмчгүй —</SelectItem>
+                {doctors.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.fullName}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        </section>
+      )}
 
       <div className="flex justify-end gap-2 pt-2 border-t border-border">
         <Button type="submit" disabled={submitting}>
