@@ -95,8 +95,8 @@ function DynamicField({
             className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="">— Сонгох —</option>
-            {field.options?.map((opt) => (
-              <option key={opt} value={opt}>{opt}</option>
+            {field.options?.map((opt, i) => (
+              <option key={`${i}-${opt}`} value={opt}>{opt}</option>
             ))}
           </select>
         </div>
@@ -127,8 +127,8 @@ function DynamicField({
             {field.required && <span className="text-destructive ml-1">*</span>}
           </Label>
           <div className="flex flex-wrap gap-3">
-            {field.options?.map((opt) => (
-              <label key={opt} className="flex items-center gap-2 cursor-pointer">
+            {field.options?.map((opt, i) => (
+              <label key={`${i}-${opt}`} className="flex items-center gap-2 cursor-pointer">
                 <input
                   type="radio"
                   name={field.id}
