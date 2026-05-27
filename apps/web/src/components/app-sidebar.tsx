@@ -27,7 +27,8 @@ export function AppSidebar({ role }: { role: Role }) {
         <ul className="space-y-0.5">
           {items.map((item) => {
             const isActive =
-              pathname === item.href || pathname.startsWith(item.href + "/");
+              pathname === item.href ||
+              (item.href !== "/settings" && pathname.startsWith(item.href + "/"));
             const Icon = item.icon;
             return (
               <li key={item.href}>

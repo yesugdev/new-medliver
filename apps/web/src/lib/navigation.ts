@@ -10,6 +10,7 @@ import {
   UserCog,
   HeartPulse,
   FlaskConical,
+  FileSliders,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@his/shared";
@@ -87,6 +88,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/settings",
     label: "Систем",
     icon: Shield,
+    roles: [ROLES.ADMIN],
+  },
+  {
+    href: "/settings/emr-template",
+    label: "EMR загвар",
+    icon: FileSliders,
     roles: [ROLES.ADMIN],
   },
 ];
