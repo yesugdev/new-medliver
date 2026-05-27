@@ -57,3 +57,42 @@
     @apply bg-muted/40;
   }
 }
+
+@media print {
+  @page {
+    margin: 1.5cm;
+    size: A4;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Hide sidebar, header, nav */
+  aside,
+  header,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Remove sidebar left-padding */
+  .pl-64 {
+    padding-left: 0 !important;
+  }
+
+  /* Stretch main to full width */
+  main {
+    padding: 0 !important;
+  }
+
+  /* Show print-only invoice */
+  .print-only {
+    display: block !important;
+  }
+
+  /* Hide screen-only content */
+  .screen-only {
+    display: none !important;
+  }
+}
