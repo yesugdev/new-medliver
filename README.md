@@ -188,3 +188,4 @@ hospital-his/
 - [ ] Audit log retention policy
 - [ ] Log aggregation (Sentry, Datadog гэх мэт)
 "# new-medliver" 
+# new-medliver
