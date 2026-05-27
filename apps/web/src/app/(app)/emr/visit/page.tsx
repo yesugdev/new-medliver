@@ -4,9 +4,10 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Loader2, Plus, Save, Trash2, CheckCircle2, Lock, User as UserIcon, ArrowLeft,
+  Loader2, Plus, Save, Trash2, CheckCircle2, Lock, User as UserIcon,
+  ArrowLeft, ChevronDown, ChevronUp, FileText,
 } from "lucide-react";
-import type { Prescription } from "@his/shared";
+import type { Prescription, EmrTabConfig, EmrSectionConfig, EmrFieldConfig } from "@his/shared";
 import { VISIT_STATUS_LABELS_MN } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,16 +18,18 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { useAuthStore } from "@/stores/auth-store";
 import { createVisit, getVisit, updateVisit } from "@/lib/emr-api";
+import { getEmrTemplate } from "@/lib/emr-template-api";
 import { getPatient } from "@/lib/patients-api";
 import { extractApiError } from "@/lib/api";
 import { formatDateTimeMn } from "@/lib/utils";
 import { VISIT_TONE } from "@/lib/status-tones";
+import { PatientVitals } from "@/components/patient-vitals";
 
 /* ─── Read-only field ────────────────────────────────────────────────── */
 function ReadField({ label, value }: { label: string; value?: string }) {
   return (
     <div className="space-y-1.5">
-      <div className="text-xs font-medium text-muted-foreground">{label}</div>
+      {label && <div className="text-xs font-medium text-muted-foreground">{label}</div>}
       <div className="min-h-[2.5rem] rounded-md border border-border bg-muted/30 px-3 py-2 text-sm whitespace-pre-wrap">
         {value || <span className="text-muted-foreground italic">—</span>}
       </div>
@@ -34,6 +37,214 @@ function ReadField({ label, value }: { label: string; value?: string }) {
   );
 }
 
+/* ─── Dynamic field renderer ─────────────────────────────────────────── */
+function DynamicField({
+  field,
+  value,
+  onChange,
+  readOnly,
+}: {
+  field: EmrFieldConfig;
+  value: string | number | boolean | undefined;
+  onChange: (val: string | number | boolean) => void;
+  readOnly?: boolean;
+}) {
+  const strVal = value === undefined || value === null ? "" : String(value);
+
+  if (readOnly) {
+    if (field.type === "checkbox") {
+      return (
+        <div className="flex items-center gap-2 py-1">
+          <div className={`h-4 w-4 rounded border-2 flex items-center justify-center ${value ? "border-primary bg-primary" : "border-muted-foreground"}`}>
+            {value && <div className="h-2 w-2 bg-white rounded-sm" />}
+          </div>
+          <span className="text-sm">{field.label}</span>
+        </div>
+      );
+    }
+    return <ReadField label={field.label} value={strVal} />;
+  }
+
+  switch (field.type) {
+    case "textarea":
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">
+            {field.label}
+            {field.required && <span className="text-destructive ml-1">*</span>}
+          </Label>
+          <Textarea
+            rows={3}
+            placeholder={field.placeholder}
+            value={strVal}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        </div>
+      );
+
+    case "select":
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">
+            {field.label}
+            {field.required && <span className="text-destructive ml-1">*</span>}
+          </Label>
+          <select
+            value={strVal}
+            onChange={(e) => onChange(e.target.value)}
+            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            <option value="">— Сонгох —</option>
+            {field.options?.map((opt) => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
+        </div>
+      );
+
+    case "number":
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">
+            {field.label}
+            {field.unit && <span className="text-muted-foreground ml-1">({field.unit})</span>}
+            {field.required && <span className="text-destructive ml-1">*</span>}
+          </Label>
+          <Input
+            type="number"
+            placeholder={field.placeholder}
+            value={strVal}
+            onChange={(e) => onChange(e.target.value === "" ? "" : Number(e.target.value))}
+          />
+        </div>
+      );
+
+    case "radio":
+      return (
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">
+            {field.label}
+            {field.required && <span className="text-destructive ml-1">*</span>}
+          </Label>
+          <div className="flex flex-wrap gap-3">
+            {field.options?.map((opt) => (
+              <label key={opt} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="radio"
+                  name={field.id}
+                  value={opt}
+                  checked={strVal === opt}
+                  onChange={() => onChange(opt)}
+                  className="accent-primary"
+                />
+                <span className="text-sm">{opt}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      );
+
+    case "checkbox":
+      return (
+        <label className="flex items-center gap-2 cursor-pointer py-1">
+          <input
+            type="checkbox"
+            checked={Boolean(value)}
+            onChange={(e) => onChange(e.target.checked)}
+            className="h-4 w-4 accent-primary"
+          />
+          <span className="text-sm font-medium">
+            {field.label}
+            {field.required && <span className="text-destructive ml-1">*</span>}
+          </span>
+        </label>
+      );
+
+    default: // text
+      return (
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium">
+            {field.label}
+            {field.unit && <span className="text-muted-foreground ml-1">({field.unit})</span>}
+            {field.required && <span className="text-destructive ml-1">*</span>}
+          </Label>
+          <Input
+            type="text"
+            placeholder={field.placeholder}
+            value={strVal}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        </div>
+      );
+  }
+}
+
+/* ─── Accordion section ──────────────────────────────────────────────── */
+function AccordionSection({
+  section,
+  patientId,
+  sectionNotes,
+  onNoteChange,
+  canEdit,
+}: {
+  section: EmrSectionConfig;
+  patientId: string;
+  sectionNotes: Record<string, string | number | boolean>;
+  onNoteChange: (fieldId: string, val: string | number | boolean) => void;
+  canEdit: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="border border-border rounded-lg overflow-hidden">
+      {/* Accordion header */}
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
+      >
+        <span className="text-sm font-semibold">{section.name}</span>
+        {open ? (
+          <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
+        ) : (
+          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        )}
+      </button>
+
+      {/* Accordion content */}
+      {open && (
+        <div className="px-4 py-4">
+          {section.type === "vitals" ? (
+            /* Vitals module — embedded PatientVitals component */
+            <PatientVitals patientId={patientId} />
+          ) : section.fields && section.fields.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {section.fields.map((field) => (
+                <div
+                  key={field.id}
+                  className={field.type === "textarea" || field.type === "radio" ? "md:col-span-2" : ""}
+                >
+                  <DynamicField
+                    field={field}
+                    value={sectionNotes[field.id]}
+                    onChange={(val) => onNoteChange(field.id, val)}
+                    readOnly={!canEdit}
+                  />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground italic">
+              Энэ хэсэгт тохируулсан талбар байхгүй байна.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Main form ──────────────────────────────────────────────────────── */
 function VisitForm() {
   const router = useRouter();
   const params = useSearchParams();
@@ -45,15 +256,20 @@ function VisitForm() {
   const appointmentId = params.get("appointmentId") ?? undefined;
   const visitIdParam  = params.get("visitId") ?? "";
 
-  const [visitId, setVisitId] = useState(visitIdParam);
+  const [visitId, setVisitId]     = useState(visitIdParam);
+  const [activeTab, setActiveTab] = useState(0); // 0 = Tab1 (visit info), 1+ = template tabs
 
-  /* Form state */
+  /* Tab 1 form state */
   const [chiefComplaint, setChiefComplaint] = useState("");
   const [symptoms,       setSymptoms]       = useState("");
   const [diagnosis,      setDiagnosis]      = useState("");
   const [treatment,      setTreatment]      = useState("");
   const [notes,          setNotes]          = useState("");
   const [prescriptions,  setPrescriptions]  = useState<Prescription[]>([]);
+
+  /* Tab 2+ clinical notes: Record<sectionId, Record<fieldId, value>> */
+  const [clinicalNotes, setClinicalNotes] = useState<Record<string, Record<string, string | number | boolean>>>({});
+
   const populated = useRef(false);
 
   /* ── Queries ──────────────────────────────────────────────────────── */
@@ -69,6 +285,13 @@ function VisitForm() {
     enabled: Boolean(visitId),
   });
 
+  const templateQuery = useQuery({
+    queryKey: ["emr-template"],
+    queryFn: getEmrTemplate,
+  });
+
+  const templateTabs: EmrTabConfig[] = templateQuery.data?.tabs ?? [];
+
   /* Populate form once when visit data arrives */
   useEffect(() => {
     if (existingVisit.data && !populated.current) {
@@ -80,10 +303,11 @@ function VisitForm() {
       setTreatment(v.treatment ?? "");
       setNotes(v.notes ?? "");
       setPrescriptions(v.prescriptions ?? []);
+      setClinicalNotes((v.clinicalNotes as Record<string, Record<string, string | number | boolean>>) ?? {});
     }
   }, [existingVisit.data]);
 
-  /* Reset populated flag when visitId changes (navigating to different visit) */
+  /* Reset populated flag when visitId changes */
   useEffect(() => {
     populated.current = false;
   }, [visitId]);
@@ -101,7 +325,8 @@ function VisitForm() {
     if (patientId && !visitId && !ensureVisit.isPending && !ensureVisit.isSuccess) {
       ensureVisit.mutate();
     }
-  }, [patientId, visitId, ensureVisit]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [patientId, visitId]);
 
   /* ── Ownership / edit permission ──────────────────────────────────── */
   const visit = existingVisit.data;
@@ -109,6 +334,17 @@ function VisitForm() {
     Boolean(user) &&
     Boolean(visit) &&
     (user!.role === "admin" || user!.id === visit!.doctorId);
+
+  /* ── Clinical notes helper ────────────────────────────────────────── */
+  function setNote(sectionId: string, fieldId: string, val: string | number | boolean) {
+    setClinicalNotes((prev) => ({
+      ...prev,
+      [sectionId]: {
+        ...(prev[sectionId] ?? {}),
+        [fieldId]: val,
+      },
+    }));
+  }
 
   /* ── Save mutation ────────────────────────────────────────────────── */
   const save = useMutation({
@@ -120,6 +356,7 @@ function VisitForm() {
         treatment,
         notes,
         prescriptions,
+        clinicalNotes,
         status,
       }),
     onSuccess: (_, status) => {
@@ -150,24 +387,34 @@ function VisitForm() {
     );
   }
 
+  /* ─── Tab bar ────────────────────────────────────────────────────── */
+  const tabItems = [
+    { label: "Үзлэгийн мэдээлэл" },
+    ...templateTabs.map((t) => ({ label: t.name })),
+  ];
+
   /* ── Render ───────────────────────────────────────────────────────── */
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-5 max-w-5xl">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-start gap-2">
-          <Button variant="ghost" size="icon" className="mt-0.5 shrink-0"
-            onClick={() => patientId ? router.push(`/patients/${patientId}`) : router.back()}>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="mt-0.5 shrink-0"
+            onClick={() => (patientId ? router.push(`/patients/${patientId}`) : router.back())}
+          >
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Үзлэгийн карт</h1>
-          {patient.data && (
-            <p className="text-sm text-muted-foreground mt-1">
-              {patient.data.lastName} {patient.data.firstName} ·{" "}
-              <span className="font-mono">{patient.data.patientCode}</span>
-            </p>
-          )}
+            <h1 className="text-2xl font-semibold tracking-tight">Үзлэгийн карт</h1>
+            {patient.data && (
+              <p className="text-sm text-muted-foreground mt-1">
+                {patient.data.lastName} {patient.data.firstName} ·{" "}
+                <span className="font-mono">{patient.data.patientCode}</span>
+              </p>
+            )}
           </div>
         </div>
         {visit && (
@@ -182,16 +429,20 @@ function VisitForm() {
         )}
       </div>
 
-      {/* Doctor info + ownership notice */}
+      {/* Doctor info / ownership notice */}
       {visit && (
-        <div className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm border ${
-          canEdit
-            ? "bg-emerald-50 border-emerald-200 text-emerald-800"
-            : "bg-amber-50 border-amber-200 text-amber-800"
-        }`}>
-          {canEdit
-            ? <UserIcon className="h-4 w-4 shrink-0" />
-            : <Lock className="h-4 w-4 shrink-0" />}
+        <div
+          className={`flex items-center gap-2 rounded-lg px-4 py-2.5 text-sm border ${
+            canEdit
+              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+              : "bg-amber-50 border-amber-200 text-amber-800"
+          }`}
+        >
+          {canEdit ? (
+            <UserIcon className="h-4 w-4 shrink-0" />
+          ) : (
+            <Lock className="h-4 w-4 shrink-0" />
+          )}
           <span>
             <strong>Эмч:</strong> {visit.doctorName}
             {!canEdit && (
@@ -201,140 +452,275 @@ function VisitForm() {
         </div>
       )}
 
-      {/* Clinical info */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Үзлэгийн мэдээлэл</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {canEdit ? (
-            <>
-              <div className="space-y-2">
-                <Label>Зовиур</Label>
-                <Textarea rows={2} value={chiefComplaint}
-                  onChange={(e) => setChiefComplaint(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Шинж тэмдэг</Label>
-                <Textarea rows={3} value={symptoms}
-                  onChange={(e) => setSymptoms(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Онош</Label>
-                <Textarea rows={2} value={diagnosis}
-                  onChange={(e) => setDiagnosis(e.target.value)} />
-              </div>
-              <div className="space-y-2">
-                <Label>Эмчилгээ</Label>
-                <Textarea rows={3} value={treatment}
-                  onChange={(e) => setTreatment(e.target.value)} />
-              </div>
-            </>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ReadField label="Зовиур"     value={chiefComplaint} />
-              <ReadField label="Шинж тэмдэг" value={symptoms} />
-              <ReadField label="Онош"        value={diagnosis} />
-              <ReadField label="Эмчилгээ"    value={treatment} />
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* ── Tab bar ─────────────────────────────────────────────────── */}
+      <div className="flex gap-1 border-b border-border overflow-x-auto">
+        {tabItems.map((tab, idx) => (
+          <button
+            key={idx}
+            type="button"
+            onClick={() => setActiveTab(idx)}
+            className={`relative px-4 py-2.5 text-sm font-medium whitespace-nowrap transition-colors ${
+              activeTab === idx
+                ? "text-foreground after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:bg-primary after:rounded-t"
+                : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {idx > 0 && <FileText className="inline h-3.5 w-3.5 mr-1.5 opacity-70" />}
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-      {/* Prescriptions */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Эмийн жор</CardTitle>
-          {canEdit && (
-            <Button variant="outline" size="sm"
-              onClick={() => setPrescriptions([
-                ...prescriptions,
-                { medication: "", dosage: "", frequency: "", duration: "" },
-              ])}>
-              <Plus className="h-4 w-4" />
-              Жор нэмэх
-            </Button>
-          )}
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {prescriptions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">Жор нэмээгүй</p>
-          ) : canEdit ? (
-            prescriptions.map((p, idx) => (
-              <div key={idx} className="grid grid-cols-12 gap-2 items-start border rounded-md p-3">
-                <div className="col-span-12 md:col-span-3">
-                  <Label className="text-xs">Эмийн нэр</Label>
-                  <Input value={p.medication}
-                    onChange={(e) => { const n=[...prescriptions]; n[idx]={...n[idx],medication:e.target.value}; setPrescriptions(n); }} />
+      {/* ── TAB 1: Үзлэгийн мэдээлэл ────────────────────────────────── */}
+      {activeTab === 0 && (
+        <div className="space-y-6">
+          {/* Clinical info */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Үзлэгийн мэдээлэл</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {canEdit ? (
+                <>
+                  <div className="space-y-2">
+                    <Label>Зовиур</Label>
+                    <Textarea
+                      rows={2}
+                      value={chiefComplaint}
+                      onChange={(e) => setChiefComplaint(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Шинж тэмдэг</Label>
+                    <Textarea
+                      rows={3}
+                      value={symptoms}
+                      onChange={(e) => setSymptoms(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Онош</Label>
+                    <Textarea
+                      rows={2}
+                      value={diagnosis}
+                      onChange={(e) => setDiagnosis(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Эмчилгээ</Label>
+                    <Textarea
+                      rows={3}
+                      value={treatment}
+                      onChange={(e) => setTreatment(e.target.value)}
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <ReadField label="Зовиур"       value={chiefComplaint} />
+                  <ReadField label="Шинж тэмдэг"  value={symptoms} />
+                  <ReadField label="Онош"          value={diagnosis} />
+                  <ReadField label="Эмчилгээ"      value={treatment} />
                 </div>
-                <div className="col-span-6 md:col-span-2">
-                  <Label className="text-xs">Тун</Label>
-                  <Input placeholder="500мг" value={p.dosage}
-                    onChange={(e) => { const n=[...prescriptions]; n[idx]={...n[idx],dosage:e.target.value}; setPrescriptions(n); }} />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Prescriptions */}
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Эмийн жор</CardTitle>
+              {canEdit && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setPrescriptions([
+                      ...prescriptions,
+                      { medication: "", dosage: "", frequency: "", duration: "" },
+                    ])
+                  }
+                >
+                  <Plus className="h-4 w-4" />
+                  Жор нэмэх
+                </Button>
+              )}
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {prescriptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Жор нэмээгүй</p>
+              ) : canEdit ? (
+                prescriptions.map((p, idx) => (
+                  <div
+                    key={idx}
+                    className="grid grid-cols-12 gap-2 items-start border rounded-md p-3"
+                  >
+                    <div className="col-span-12 md:col-span-3">
+                      <Label className="text-xs">Эмийн нэр</Label>
+                      <Input
+                        value={p.medication}
+                        onChange={(e) => {
+                          const n = [...prescriptions];
+                          n[idx] = { ...n[idx], medication: e.target.value };
+                          setPrescriptions(n);
+                        }}
+                      />
+                    </div>
+                    <div className="col-span-6 md:col-span-2">
+                      <Label className="text-xs">Тун</Label>
+                      <Input
+                        placeholder="500мг"
+                        value={p.dosage}
+                        onChange={(e) => {
+                          const n = [...prescriptions];
+                          n[idx] = { ...n[idx], dosage: e.target.value };
+                          setPrescriptions(n);
+                        }}
+                      />
+                    </div>
+                    <div className="col-span-6 md:col-span-2">
+                      <Label className="text-xs">Давтамж</Label>
+                      <Input
+                        placeholder="3 удаа"
+                        value={p.frequency}
+                        onChange={(e) => {
+                          const n = [...prescriptions];
+                          n[idx] = { ...n[idx], frequency: e.target.value };
+                          setPrescriptions(n);
+                        }}
+                      />
+                    </div>
+                    <div className="col-span-6 md:col-span-2">
+                      <Label className="text-xs">Хугацаа</Label>
+                      <Input
+                        placeholder="7 хоног"
+                        value={p.duration}
+                        onChange={(e) => {
+                          const n = [...prescriptions];
+                          n[idx] = { ...n[idx], duration: e.target.value };
+                          setPrescriptions(n);
+                        }}
+                      />
+                    </div>
+                    <div className="col-span-5 md:col-span-2">
+                      <Label className="text-xs">Заавар</Label>
+                      <Input
+                        value={p.instructions ?? ""}
+                        onChange={(e) => {
+                          const n = [...prescriptions];
+                          n[idx] = { ...n[idx], instructions: e.target.value };
+                          setPrescriptions(n);
+                        }}
+                      />
+                    </div>
+                    <div className="col-span-1 flex items-end justify-end pt-5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() =>
+                          setPrescriptions(prescriptions.filter((_, i) => i !== idx))
+                        }
+                      >
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="space-y-2">
+                  {prescriptions.map((p, idx) => (
+                    <div
+                      key={idx}
+                      className="rounded-md border border-border bg-muted/20 px-4 py-2.5 text-sm"
+                    >
+                      <span className="font-medium">{p.medication}</span>
+                      {p.dosage && (
+                        <span className="ml-2 text-muted-foreground">{p.dosage}</span>
+                      )}
+                      {p.frequency && <span className="ml-2">· {p.frequency}</span>}
+                      {p.duration && <span className="ml-2">· {p.duration}</span>}
+                      {p.instructions && (
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {p.instructions}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-                <div className="col-span-6 md:col-span-2">
-                  <Label className="text-xs">Давтамж</Label>
-                  <Input placeholder="3 удаа" value={p.frequency}
-                    onChange={(e) => { const n=[...prescriptions]; n[idx]={...n[idx],frequency:e.target.value}; setPrescriptions(n); }} />
-                </div>
-                <div className="col-span-6 md:col-span-2">
-                  <Label className="text-xs">Хугацаа</Label>
-                  <Input placeholder="7 хоног" value={p.duration}
-                    onChange={(e) => { const n=[...prescriptions]; n[idx]={...n[idx],duration:e.target.value}; setPrescriptions(n); }} />
-                </div>
-                <div className="col-span-5 md:col-span-2">
-                  <Label className="text-xs">Заавар</Label>
-                  <Input value={p.instructions ?? ""}
-                    onChange={(e) => { const n=[...prescriptions]; n[idx]={...n[idx],instructions:e.target.value}; setPrescriptions(n); }} />
-                </div>
-                <div className="col-span-1 flex items-end justify-end pt-5">
-                  <Button variant="ghost" size="icon"
-                    onClick={() => setPrescriptions(prescriptions.filter((_, i) => i !== idx))}>
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                </div>
-              </div>
-            ))
-          ) : (
-            /* Read-only prescription list */
-            <div className="space-y-2">
-              {prescriptions.map((p, idx) => (
-                <div key={idx} className="rounded-md border border-border bg-muted/20 px-4 py-2.5 text-sm">
-                  <span className="font-medium">{p.medication}</span>
-                  {p.dosage && <span className="ml-2 text-muted-foreground">{p.dosage}</span>}
-                  {p.frequency && <span className="ml-2">· {p.frequency}</span>}
-                  {p.duration && <span className="ml-2">· {p.duration}</span>}
-                  {p.instructions && (
-                    <div className="text-xs text-muted-foreground mt-0.5">{p.instructions}</div>
-                  )}
-                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Notes */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Тэмдэглэл</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {canEdit ? (
+                <Textarea
+                  rows={3}
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                />
+              ) : (
+                <ReadField label="" value={notes} />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* ── TAB 2+: Дэлгэрэнгүй тэмдэглэл (accordion sections) ─────── */}
+      {activeTab > 0 && (() => {
+        const currentTab = templateTabs[activeTab - 1];
+        if (!currentTab) return null;
+
+        return (
+          <div className="space-y-3">
+            {currentTab.sections
+              .sort((a, b) => a.order - b.order)
+              .map((section) => (
+                <AccordionSection
+                  key={section.id}
+                  section={section}
+                  patientId={patientId}
+                  sectionNotes={clinicalNotes[section.id] ?? {}}
+                  onNoteChange={(fieldId, val) => setNote(section.id, fieldId, val)}
+                  canEdit={canEdit}
+                />
               ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+            {currentTab.sections.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                <FileText className="h-10 w-10 mx-auto mb-3 opacity-30" />
+                <p className="text-sm">Энэ табд section нэмэгдээгүй байна.</p>
+                <p className="text-xs mt-1">Тохиргоо → EMR загвар хэсгээс нэмнэ үү.</p>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
-      {/* Notes */}
-      <Card>
-        <CardHeader><CardTitle>Тэмдэглэл</CardTitle></CardHeader>
-        <CardContent>
-          {canEdit ? (
-            <Textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} />
-          ) : (
-            <ReadField label="" value={notes} />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Action buttons — only for the owning doctor */}
+      {/* ── Action buttons ───────────────────────────────────────────── */}
       {canEdit && (
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => save.mutate(undefined)} disabled={save.isPending}>
-            <Save className="h-4 w-4" />
+        <div className="flex justify-end gap-2 pt-2">
+          <Button
+            variant="outline"
+            onClick={() => save.mutate(undefined)}
+            disabled={save.isPending}
+          >
+            {save.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
             Хадгалах
           </Button>
           {visit?.status !== "completed" && (
-            <Button onClick={() => save.mutate("completed")} disabled={save.isPending}>
+            <Button
+              onClick={() => save.mutate("completed")}
+              disabled={save.isPending}
+            >
               <CheckCircle2 className="h-4 w-4" />
               Үзлэг дуусгах
             </Button>
@@ -347,11 +733,13 @@ function VisitForm() {
 
 export default function Page() {
   return (
-    <Suspense fallback={
-      <div className="flex justify-center py-20">
-        <Loader2 className="h-6 w-6 animate-spin" />
-      </div>
-    }>
+    <Suspense
+      fallback={
+        <div className="flex justify-center py-20">
+          <Loader2 className="h-6 w-6 animate-spin" />
+        </div>
+      }
+    >
       <VisitForm />
     </Suspense>
   );

@@ -42,6 +42,7 @@ export class EmrService {
       notes: doc.notes,
       vitals: doc.vitals,
       prescriptions: doc.prescriptions,
+      clinicalNotes: doc.clinicalNotes ?? {},
       createdAt: (doc as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
       updatedAt: (doc as any).updatedAt?.toISOString?.() ?? new Date().toISOString(),
     };
@@ -98,6 +99,7 @@ export class EmrService {
     if (dto.notes !== undefined) doc.notes = dto.notes;
     if (dto.vitals !== undefined) doc.vitals = dto.vitals as any;
     if (dto.prescriptions !== undefined) doc.prescriptions = dto.prescriptions as any;
+    if (dto.clinicalNotes !== undefined) doc.clinicalNotes = dto.clinicalNotes as any;
 
     if (dto.status === "completed" && doc.status !== "completed") {
       doc.status = "completed";

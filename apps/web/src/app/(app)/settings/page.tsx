@@ -1,6 +1,7 @@
 "use client";
 
-import { Shield } from "lucide-react";
+import Link from "next/link";
+import { Shield, FileText, ChevronRight } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SettingsPage() {
@@ -15,6 +16,28 @@ export default function SettingsPage() {
           Эмнэлгийн системийн ерөнхий тохиргоо
         </p>
       </div>
+
+      {/* Quick links */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Тохиргоо</CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          <Link
+            href="/settings/emr-template"
+            className="flex items-center gap-3 px-6 py-4 hover:bg-muted/40 transition-colors border-b border-border last:border-0"
+          >
+            <FileText className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium">EMR загвар тохиргоо</div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                Үзлэгийн картын tab, section, талбаруудыг тохируулах
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </Link>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

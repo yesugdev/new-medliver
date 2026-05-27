@@ -57,6 +57,10 @@ export class Visit {
   @Prop({ type: String, trim: true }) notes?: string;
   @Prop({ type: VitalsSchema }) vitals?: Vitals;
   @Prop({ type: [PrescriptionSchema], default: [] }) prescriptions?: Prescription[];
+
+  /** Dynamic clinical notes from the admin-configured template */
+  @Prop({ type: Object, default: {} })
+  clinicalNotes?: Record<string, Record<string, any>>;
 }
 
 export const VisitSchema = SchemaFactory.createForClass(Visit);

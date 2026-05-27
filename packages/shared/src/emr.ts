@@ -70,7 +70,45 @@ export interface Visit {
   notes?: string;
   vitals?: Vitals;
   prescriptions?: Prescription[];
+  /** Dynamic clinical notes: sectionId → { fieldId: value } */
+  clinicalNotes?: Record<string, Record<string, string | number | boolean>>;
   createdAt: string;
+  updatedAt: string;
+}
+
+/* ─── EMR Template (admin-configurable) ────────────────────────────── */
+
+export type EmrFieldType = "text" | "textarea" | "select" | "number" | "radio" | "checkbox";
+
+export interface EmrFieldConfig {
+  id: string;
+  label: string;
+  type: EmrFieldType;
+  options?: string[];
+  required?: boolean;
+  unit?: string;
+  placeholder?: string;
+}
+
+export interface EmrSectionConfig {
+  id: string;
+  name: string;
+  order: number;
+  /** "vitals" renders the vitals widget; "custom" renders configured fields */
+  type: "vitals" | "custom";
+  fields: EmrFieldConfig[];
+}
+
+export interface EmrTabConfig {
+  id: string;
+  name: string;
+  order: number;
+  sections: EmrSectionConfig[];
+}
+
+export interface EmrTemplateConfig {
+  id: string;
+  tabs: EmrTabConfig[];
   updatedAt: string;
 }
 
@@ -88,5 +126,6 @@ export interface UpdateVisitInput {
   notes?: string;
   vitals?: Vitals;
   prescriptions?: Prescription[];
+  clinicalNotes?: Record<string, Record<string, string | number | boolean>>;
   status?: VisitStatus;
 }

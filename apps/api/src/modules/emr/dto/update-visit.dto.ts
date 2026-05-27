@@ -50,4 +50,7 @@ export class UpdateVisitDto {
   @IsOptional()
   @IsEnum(["in_progress", "completed"])
   status?: "in_progress" | "completed";
+
+  @IsOptional()
+  clinicalNotes?: Record<string, Record<string, any>>;
 }
