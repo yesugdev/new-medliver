@@ -7,3 +7,4 @@ export * from "./billing";
 export * from "./stats";
 export * from "./audit";
 export * from "./lab";
+export * from "./medical-history";

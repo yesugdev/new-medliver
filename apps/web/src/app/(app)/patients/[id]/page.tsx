@@ -13,6 +13,7 @@ import { PatientVisits } from "@/components/patient-visits";
 import { PatientInvoices } from "@/components/patient-invoices";
 import { PatientVitals } from "@/components/patient-vitals";
 import { PatientLabOrders } from "@/components/patient-lab-orders";
+import { PatientMedicalHistory } from "@/components/patient-medical-history";
 
 export default function PatientDetailPage({
   params,
@@ -201,6 +202,8 @@ export default function PatientDetailPage({
       </div>
 
       <PatientVitals patientId={patient.id} />
+
+      <PatientMedicalHistory patientId={patient.id} />
 
       <PatientLabOrders patientId={patient.id} />
       <PatientVisits patientId={patient.id} />
