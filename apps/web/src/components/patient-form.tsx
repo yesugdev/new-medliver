@@ -249,10 +249,11 @@ export function PatientForm({
           <h3 className="text-sm font-semibold">Хяналтын эмч</h3>
           <Field label="Хяналтын эмч">
             <Select
-              value={attendingDoctorId}
+              value={attendingDoctorId || "__none__"}
               onValueChange={(val) => {
-                setAttendingDoctorId(val);
-                const doc = doctors.find((d) => d.id === val);
+                const resolved = val === "__none__" ? "" : val;
+                setAttendingDoctorId(resolved);
+                const doc = doctors.find((d) => d.id === resolved);
                 setAttendingDoctorName(doc?.fullName ?? "");
               }}
             >
@@ -260,7 +261,7 @@ export function PatientForm({
                 <SelectValue placeholder="— Сонгох —" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">— Хяналтын эмчгүй —</SelectItem>
+                <SelectItem value="__none__">— Хяналтын эмчгүй —</SelectItem>
                 {doctors.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
                     {d.fullName}
