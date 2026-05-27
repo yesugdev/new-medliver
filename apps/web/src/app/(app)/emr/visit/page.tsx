@@ -68,12 +68,37 @@ function DynamicField({
 
   if (readOnly) {
     if (field.type === "checkbox") {
-      return (
-        <div className="flex items-center gap-2 py-1">
-          <div className={`h-4 w-4 rounded border-2 flex items-center justify-center ${value ? "border-primary bg-primary" : "border-muted-foreground"}`}>
-            {value && <div className="h-2 w-2 bg-white rounded-sm" />}
+      const hasOpts = (field.options?.length ?? 0) > 0;
+      if (!hasOpts) {
+        const checked = value === true || value === "true";
+        return (
+          <div className="flex items-center gap-2 py-1">
+            <div className={`h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 ${checked ? "border-primary bg-primary" : "border-muted-foreground"}`}>
+              {checked && <div className="h-2 w-2 bg-white rounded-sm" />}
+            </div>
+            <span className="text-sm">{field.label}</span>
           </div>
-          <span className="text-sm">{field.label}</span>
+        );
+      }
+      // Multi-checkbox read-only
+      const selected = strVal ? strVal.split(",").map((s) => s.trim()).filter(Boolean) : [];
+      return (
+        <div className="space-y-1.5">
+          <div className="text-xs font-medium text-muted-foreground">{field.label}</div>
+          <div className="flex flex-wrap gap-2">
+            {field.options?.map((opt, i) => (
+              <span key={`${i}-${opt}`}
+                className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${
+                  selected.includes(opt)
+                    ? "bg-primary/10 border-primary/40 text-primary font-medium"
+                    : "bg-muted/30 border-border text-muted-foreground"
+                }`}>
+                {selected.includes(opt) && <span className="text-[10px]">✓</span>}
+                {opt}
+              </span>
+            ))}
+            {selected.length === 0 && <span className="text-xs text-muted-foreground italic">—</span>}
+          </div>
         </div>
       );
     }
@@ -159,21 +184,56 @@ function DynamicField({
         </div>
       );
 
-    case "checkbox":
+    case "checkbox": {
+      const hasOpts = (field.options?.length ?? 0) > 0;
+      if (!hasOpts) {
+        // Single boolean checkbox
+        const checked = value === true || value === "true";
+        return (
+          <label className="flex items-center gap-2 cursor-pointer py-1">
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={(e) => onChange(e.target.checked)}
+              className="h-4 w-4 accent-primary"
+            />
+            <span className="text-sm font-medium">
+              {field.label}
+              {field.required && <span className="text-destructive ml-1">*</span>}
+            </span>
+          </label>
+        );
+      }
+      // Multi-select checkboxes — value stored as comma-separated string
+      const selected = strVal ? strVal.split(",").map((s) => s.trim()).filter(Boolean) : [];
+      const toggleOpt = (opt: string) => {
+        const next = selected.includes(opt)
+          ? selected.filter((s) => s !== opt)
+          : [...selected, opt];
+        onChange(next.join(","));
+      };
       return (
-        <label className="flex items-center gap-2 cursor-pointer py-1">
-          <input
-            type="checkbox"
-            checked={Boolean(value)}
-            onChange={(e) => onChange(e.target.checked)}
-            className="h-4 w-4 accent-primary"
-          />
-          <span className="text-sm font-medium">
+        <div className="space-y-2">
+          <Label className="text-xs font-medium">
             {field.label}
             {field.required && <span className="text-destructive ml-1">*</span>}
-          </span>
-        </label>
+          </Label>
+          <div className="flex flex-wrap gap-3">
+            {field.options?.map((opt, i) => (
+              <label key={`${i}-${opt}`} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(opt)}
+                  onChange={() => toggleOpt(opt)}
+                  className="h-4 w-4 accent-primary"
+                />
+                <span className="text-sm">{opt}</span>
+              </label>
+            ))}
+          </div>
+        </div>
       );
+    }
 
     default: // text
       return (
