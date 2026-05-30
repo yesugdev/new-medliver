@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, ForbiddenException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import type { AuthUser, TreatmentRecord } from "@his/shared";
@@ -53,9 +53,12 @@ export class TreatmentService {
     return docs.map((d) => this.toShared(d));
   }
 
-  async deleteRecord(id: string): Promise<void> {
+  async deleteRecord(id: string, actor: AuthUser): Promise<void> {
     const doc = await this.model.findById(id);
     if (!doc) throw new NotFoundException("Эмчилгээний бүртгэл олдсонгүй");
+    if (actor.role !== "admin" && doc.recordedById.toString() !== actor.id) {
+      throw new ForbiddenException("Зөвхөн бүртгэсэн эмч өөрийн эмчилгээг устгах боломжтой");
+    }
     await doc.deleteOne();
   }
 }

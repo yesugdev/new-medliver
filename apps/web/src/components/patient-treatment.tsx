@@ -468,8 +468,14 @@ export function PatientTreatment({
   const [open, setOpen]           = useState(defaultOpen);
   const [activeTab, setActiveTab] = useState<"list" | "add">("list");
 
-  const canAdd    = user && ["admin", "doctor", "nurse"].includes(user.role);
-  const canDelete = user && ["admin", "doctor"].includes(user.role);
+  const canAdd = user && ["admin", "doctor", "nurse"].includes(user.role);
+
+  // Admin can delete anyone's; doctor can only delete their own
+  const canDeleteRecord = (recordedById: string) =>
+    !!user && (
+      user.role === "admin" ||
+      (user.role === "doctor" && user.id === recordedById)
+    );
 
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["treatments", patientId],
@@ -551,7 +557,7 @@ export function PatientTreatment({
                       key={r.id}
                       record={r}
                       patientId={patientId}
-                      canDelete={!!canDelete}
+                      canDelete={canDeleteRecord(r.recordedById)}
                     />
                   ))}
                 </div>

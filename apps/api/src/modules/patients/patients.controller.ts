@@ -113,8 +113,11 @@ export class PatientsController {
 
   @Delete(":patientId/treatments/:treatmentId")
   @Roles(ROLES.ADMIN, ROLES.DOCTOR)
-  async deleteTreatment(@Param("treatmentId") treatmentId: string) {
-    await this.treatments.deleteRecord(treatmentId);
+  async deleteTreatment(
+    @Param("treatmentId") treatmentId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    await this.treatments.deleteRecord(treatmentId, user);
     return { success: true };
   }
 }
