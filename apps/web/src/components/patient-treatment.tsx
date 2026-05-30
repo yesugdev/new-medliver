@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown, ChevronUp, Plus, Trash2,
-  Loader2, Pill, CalendarDays, User,
+  Loader2, Pill, CalendarDays, User, Printer,
 } from "lucide-react";
 import { DRUG_ROUTES } from "@his/shared";
 import type { TreatmentDrug, TreatmentRecord } from "@his/shared";
@@ -242,6 +242,88 @@ function AddTreatmentForm({
   );
 }
 
+/* ─── Print helper ──────────────────────────────────────────────── */
+function printTreatment(record: TreatmentRecord) {
+  const win = window.open("", "_blank", "width=860,height=640");
+  if (!win) return;
+
+  const rows = record.drugs.map((d, i) => `
+    <tr style="background:${i % 2 === 0 ? "#fff" : "#f8fafc"}; border-bottom:1px solid #e2e8f0;">
+      <td style="padding:8px 10px; text-align:center; color:#64748b;">${i + 1}</td>
+      <td style="padding:8px 10px; font-weight:500;">${d.nameFormDosage || "—"}</td>
+      <td style="padding:8px 10px; text-align:center;">${d.totalQuantity ?? "—"}</td>
+      <td style="padding:8px 10px;">${d.route || "—"}</td>
+      <td style="padding:8px 10px; text-align:center;">${d.frequency != null ? `${d.frequency} удаа` : "—"}</td>
+      <td style="padding:8px 10px; text-align:center;">${d.perDose ?? "—"}</td>
+      <td style="padding:8px 10px; text-align:center;">${d.duration != null ? `${d.duration} өдөр` : "—"}</td>
+      <td style="padding:8px 10px; color:#64748b;">${d.notes || "—"}</td>
+    </tr>
+  `).join("");
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="mn">
+<head>
+  <meta charset="UTF-8" />
+  <title>Эмчилгээний жор</title>
+  <style>
+    @page { margin: 1.5cm; size: A4 landscape; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 13px; color: #1e293b; background: #fff; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #1e293b; color: #fff; padding: 9px 10px; text-align: left; font-size: 12px; white-space: nowrap; }
+    th:first-child { text-align: center; }
+    .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 18px; }
+    .meta { display: flex; justify-content: space-between; margin-bottom: 18px; font-size: 12px; }
+    .meta-block span { color: #64748b; }
+    .meta-block strong { display: block; margin-top: 2px; font-size: 13px; }
+    .footer { margin-top: 28px; display: flex; justify-content: space-between; border-top: 1px solid #ddd; padding-top: 12px; font-size: 11px; color: #64748b; }
+    .stamp { border: 2px solid #1e293b; padding: 4px 18px; border-radius: 4px; font-weight: bold; font-size: 13px; letter-spacing: 1px; color: #1e293b; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div style="font-size:22px; font-weight:bold; letter-spacing:2px;">MEDLIVER</div>
+    <div style="font-size:12px; color:#64748b; margin-top:4px;">ЭМЧИЛГЭЭНИЙ ЖОР / PRESCRIPTION</div>
+  </div>
+
+  <div class="meta">
+    <div class="meta-block">
+      <span>Бүртгэсэн эмч / мэргэжилтэн</span>
+      <strong>${record.recordedByName}</strong>
+    </div>
+    <div class="meta-block" style="text-align:right;">
+      <span>Бүртгэсэн огноо</span>
+      <strong>${new Date(record.createdAt).toLocaleString("mn-MN")}</strong>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:36px;">#</th>
+        <th>Эмийн нэр, хэлбэр, тун</th>
+        <th style="width:80px; text-align:center;">Нийт тоо</th>
+        <th style="width:140px;">Хэрэглэх арга</th>
+        <th style="width:90px; text-align:center;">Давтамж</th>
+        <th style="width:70px; text-align:center;">1 удаа</th>
+        <th style="width:90px; text-align:center;">Хугацаа</th>
+        <th>Тэмдэглэл</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+
+  <div class="footer">
+    <span>Хэвлэсэн: ${new Date().toLocaleString("mn-MN")}</span>
+    <span class="stamp">MEDLIVER</span>
+  </div>
+
+  <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); };<\/script>
+</body>
+</html>`);
+  win.document.close();
+}
+
 /* ─── Treatment record card ─────────────────────────────────────── */
 function TreatmentCard({
   record,
@@ -342,8 +424,18 @@ function TreatmentCard({
             </table>
           </div>
 
-          {canDelete && (
-            <div className="flex justify-end px-4 py-3 border-t border-border/50">
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5"
+              onClick={() => printTreatment(record)}
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Хэвлэх
+            </Button>
+
+            {canDelete && (
               <Button
                 variant="outline"
                 size="sm"
@@ -356,8 +448,8 @@ function TreatmentCard({
                   : <Trash2 className="h-3.5 w-3.5" />}
                 Устгах
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       )}
     </div>
