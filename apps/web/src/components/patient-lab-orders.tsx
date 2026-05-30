@@ -248,7 +248,7 @@ export function PatientLabOrders({ patientId }: { patientId: string }) {
                 {filtered.map((order) => (
                   <tr
                     key={order.id}
-                    onClick={() => router.push(`/lab/orders/${order.id}`)}
+                    onClick={() => router.push(`/lab/orders/${order.id}?from=patient`)}
                     className="cursor-pointer hover:bg-muted/40 transition-colors"
                   >
                     <td className="px-5 py-3 text-xs text-muted-foreground font-mono whitespace-nowrap">

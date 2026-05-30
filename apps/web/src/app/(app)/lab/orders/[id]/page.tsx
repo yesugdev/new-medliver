@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Loader2, CheckCircle2, FlaskConical, AlertTriangle, XCircle,
@@ -153,6 +153,8 @@ function ResultRow({
 /* ─── Page ──────────────────────────────────────────────────────────── */
 export default function LabOrderDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const searchParams = useSearchParams();
+  const fromPatient = searchParams.get("from") === "patient";
   const { toast } = useToast();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
@@ -237,7 +239,9 @@ export default function LabOrderDetailPage() {
       {/* ── Header ───────────────────────────────────────────────────── */}
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
-          <Link href="/lab"><ArrowLeft className="h-4 w-4" /></Link>
+          <Link href={fromPatient && order ? `/patients/${order.patientId}` : "/lab"}>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
         </Button>
         <div className="flex-1 flex items-center gap-3 flex-wrap">
           <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
