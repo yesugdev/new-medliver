@@ -618,7 +618,13 @@ function VisitForm() {
         return (
           <div className="space-y-3">
             {currentTab.sections
-              .sort((a, b) => a.order - b.order)
+              .slice()
+              .sort((a, b) => {
+                // vitals section always renders last within its tab
+                if (a.type === "vitals" && b.type !== "vitals") return 1;
+                if (a.type !== "vitals" && b.type === "vitals") return -1;
+                return a.order - b.order;
+              })
               .map((section) => (
                 <AccordionSection
                   key={section.id}
