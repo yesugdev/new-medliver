@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ArrowLeft, Loader2, CheckCircle2, FlaskConical, AlertTriangle, XCircle,
+  ArrowLeft, Loader2, CheckCircle2, FlaskConical, AlertTriangle, XCircle, Printer,
 } from "lucide-react";
 import {
   LAB_ORDER_STATUS_LABELS_MN,
@@ -27,6 +27,95 @@ import { getLabOrder, recordLabResults, cancelLabOrder } from "@/lib/lab-api";
 import { LAB_ORDER_TONE, LAB_INTERP_TONE } from "@/lib/status-tones";
 import { extractApiError } from "@/lib/api";
 import { formatTimeMn } from "@/lib/format";
+
+/* ─── Print lab order ────────────────────────────────────────────────── */
+const INTERP_LABELS: Record<string, string> = {
+  normal: "Хэвийн", low: "Бага", high: "Их",
+  critical_low: "Маш бага", critical_high: "Маш их",
+};
+
+function printLabOrder(order: import("@his/shared").LabOrder) {
+  const win = window.open("", "_blank", "width=960,height=700");
+  if (!win) return;
+
+  const interpColor: Record<string, string> = {
+    normal:        "#16a34a",
+    low:           "#2563eb",
+    high:          "#dc2626",
+    critical_low:  "#7c3aed",
+    critical_high: "#b91c1c",
+  };
+
+  const groups = new Map<string, typeof order.items>();
+  for (const item of order.items) {
+    const g = item.testGroup ?? "";
+    (groups.get(g) ?? groups.set(g, []).get(g)!).push(item);
+  }
+
+  const rows = [...groups.entries()].map(([grp, items]) => `
+    ${grp ? `<tr style="background:#f1f5f9"><td colspan="7" style="padding:6px 12px;font-size:11px;font-weight:700;color:#475569;letter-spacing:.5px;text-transform:uppercase">${grp}</td></tr>` : ""}
+    ${items.map((it, i) => {
+      const isCritical = it.interpretation === "critical_low" || it.interpretation === "critical_high";
+      const color = it.interpretation ? interpColor[it.interpretation] ?? "#374151" : "#374151";
+      const ref = it.referenceMin != null && it.referenceMax != null
+        ? `${it.referenceMin} – ${it.referenceMax}`
+        : it.referenceText ?? "—";
+      return `
+      <tr style="background:${isCritical ? "#fff1f2" : i % 2 === 0 ? "#fff" : "#f8fafc"};border-bottom:1px solid #e2e8f0">
+        <td style="padding:7px 12px;font-size:12px;font-weight:500">${it.testName}</td>
+        <td style="padding:7px 12px;font-size:11px;color:#64748b;font-family:monospace">${it.testCode}</td>
+        <td style="padding:7px 12px;font-size:11px;color:#64748b">${it.unit ?? "—"}</td>
+        <td style="padding:7px 12px;font-size:11px;color:#64748b">${ref}</td>
+        <td style="padding:7px 12px;font-size:13px;font-weight:600;color:${color}">${it.value ?? "—"}</td>
+        <td style="padding:7px 12px;font-size:11px;color:${color}">${it.interpretation ? (INTERP_LABELS[it.interpretation] ?? it.interpretation) : "—"}</td>
+        <td style="padding:7px 12px;font-size:11px;color:#64748b">${it.resultedByName ?? "—"}</td>
+      </tr>`;
+    }).join("")}
+  `).join("");
+
+  win.document.write(`<!DOCTYPE html>
+<html lang="mn"><head>
+<meta charset="UTF-8"/>
+<title>Шинжилгээний хариу</title>
+<style>
+  @page { margin:1.5cm; size:A4; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:Arial,sans-serif;font-size:13px;color:#1e293b;background:#fff}
+  table{width:100%;border-collapse:collapse}
+  th{background:#1e293b;color:#fff;padding:8px 12px;text-align:left;font-size:11px;white-space:nowrap}
+  .header{text-align:center;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}
+  .meta{display:flex;justify-content:space-between;margin-bottom:18px;font-size:12px;gap:12px;flex-wrap:wrap}
+  .meta-block span{color:#64748b;font-size:11px}
+  .meta-block strong{display:block;margin-top:2px}
+  .footer{margin-top:24px;display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:10px;font-size:11px;color:#64748b}
+</style>
+</head><body>
+<div class="header">
+  <div style="font-size:22px;font-weight:bold;letter-spacing:2px">MEDLIVER</div>
+  <div style="font-size:12px;color:#64748b;margin-top:4px">ШИНЖИЛГЭЭНИЙ ХАРИУ / LAB REPORT</div>
+</div>
+<div class="meta">
+  <div class="meta-block"><span>Захиалгын дугаар</span><strong style="font-family:monospace">${order.orderNumber}</strong></div>
+  <div class="meta-block"><span>Өвчтөн</span><strong>${order.patientName} — ${order.patientCode}</strong></div>
+  <div class="meta-block"><span>Захиалсан эмч</span><strong>${order.doctorName}</strong></div>
+  <div class="meta-block" style="text-align:right"><span>Огноо</span><strong>${new Date(order.orderedAt).toLocaleString("mn-MN")}</strong></div>
+</div>
+${order.clinicalNote ? `<div style="font-size:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:8px 12px;margin-bottom:14px"><b>Клиникийн тэмдэглэл:</b> ${order.clinicalNote}</div>` : ""}
+<table>
+  <thead><tr>
+    <th>Шинжилгээ</th><th>Код</th><th>Нэгж</th><th>Лавлах утга</th>
+    <th>Хариу</th><th>Дүгнэлт</th><th>Бүртгэсэн</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<div class="footer">
+  <span>Хэвлэсэн: ${new Date().toLocaleString("mn-MN")}</span>
+  <span style="border:2px solid #1e293b;padding:3px 14px;border-radius:4px;font-weight:bold;letter-spacing:1px">MEDLIVER</span>
+</div>
+<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script>
+</body></html>`);
+  win.document.close();
+}
 
 /* ─── Auto-interpret in the browser (mirrors backend logic) ────────── */
 function autoInterpret(
@@ -259,6 +348,10 @@ export default function LabOrderDetailPage() {
             {LAB_PRIORITY_LABELS_MN[order.priority as import("@his/shared").LabPriority]}
           </span>
         </div>
+        <Button variant="outline" size="sm" onClick={() => printLabOrder(order)}>
+          <Printer className="h-4 w-4" />
+          Хэвлэх
+        </Button>
         {canEdit && order.status === "ordered" && (
           <Button
             variant="ghost" size="sm"
