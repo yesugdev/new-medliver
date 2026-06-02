@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-  ClipboardCheck, CheckCircle2, Circle, SkipForward,
+  ClipboardCheck, CheckCircle2, Circle,
   Loader2, ChevronDown, ChevronUp, User, Pill,
   RotateCcw, Trash2, Search, CalendarDays,
 } from "lucide-react";
@@ -106,7 +106,7 @@ function TaskCard({ task, canDelete }: { task: TreatmentTask; canDelete: boolean
           ) : isDone ? (
             <CheckCircle2 className="h-5 w-5 text-emerald-600" />
           ) : isSkipped ? (
-            <SkipForward className="h-5 w-5 text-slate-400" />
+            <Circle className="h-5 w-5 text-slate-300" />
           ) : (
             <Circle className="h-5 w-5 text-amber-400 hover:text-emerald-500 transition-colors" />
           )}
@@ -163,17 +163,6 @@ function TaskCard({ task, canDelete }: { task: TreatmentTask; canDelete: boolean
 
         {/* Actions */}
         <div className="flex items-center gap-1 shrink-0">
-          {isPending && (
-            <button
-              type="button"
-              onClick={() => statusMut.mutate({ status: "skipped" })}
-              disabled={statusMut.isPending}
-              title="Алгасах"
-              className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-slate-600 hover:bg-muted transition-colors"
-            >
-              <SkipForward className="h-3.5 w-3.5" />
-            </button>
-          )}
           {!isPending && (
             <button
               type="button"
@@ -272,7 +261,7 @@ export default function TreatmentTasksPage() {
   const user = useAuthStore((s) => s.user);
   const [date,   setDate]   = useState(todayStr());
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "pending" | "done" | "skipped">("all");
+  const [filter, setFilter] = useState<"all" | "pending" | "done">("all");
 
   const qk = ["treatment-tasks", date, filter === "all" ? undefined : filter];
 
@@ -319,7 +308,6 @@ export default function TreatmentTasksPage() {
   /* Summary counts */
   const totalPending = tasks.filter((t) => t.status === "pending").length;
   const totalDone    = tasks.filter((t) => t.status === "done").length;
-  const totalSkipped = tasks.filter((t) => t.status === "skipped").length;
 
   const isToday = date === todayStr();
 
@@ -362,7 +350,7 @@ export default function TreatmentTasksPage() {
 
         {/* Status filter */}
         <div className="flex rounded-lg border border-border overflow-hidden bg-white text-sm">
-          {(["all", "pending", "done", "skipped"] as const).map((f) => (
+          {(["all", "pending", "done"] as const).map((f) => (
             <button
               key={f}
               type="button"
@@ -401,13 +389,6 @@ export default function TreatmentTasksPage() {
             <span className="font-semibold text-emerald-700">{totalDone}</span>
             <span className="text-muted-foreground">хийгдсэн</span>
           </div>
-          {totalSkipped > 0 && (
-            <div className="flex items-center gap-1.5 text-sm">
-              <SkipForward className="h-4 w-4 text-slate-400" />
-              <span className="font-semibold text-slate-600">{totalSkipped}</span>
-              <span className="text-muted-foreground">алгасав</span>
-            </div>
-          )}
           <div className="text-sm text-muted-foreground">
             · {fmtDate(date)}
           </div>
