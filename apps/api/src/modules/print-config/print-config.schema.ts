@@ -49,6 +49,16 @@ export class PrintConfigEntity {
 
   @Prop({ type: String })
   footerNote?: string;
+
+  @Prop({ type: Boolean, default: true })  showPatientCode!: boolean;
+  @Prop({ type: Boolean, default: true })  showPatientRegister!: boolean;
+  @Prop({ type: Boolean, default: true })  showPatientAge!: boolean;
+  @Prop({ type: Boolean, default: true })  showPatientGender!: boolean;
+  @Prop({ type: Boolean, default: true })  showPatientPhone!: boolean;
+  @Prop({ type: Boolean, default: false }) showPatientAddress!: boolean;
+  @Prop({ type: Boolean, default: false }) showPatientBloodType!: boolean;
+  @Prop({ type: Boolean, default: false }) showPatientBirthDate!: boolean;
+  @Prop({ type: Boolean, default: false }) showPatientDoctor!: boolean;
 }
 
 export const PrintConfigSchema = SchemaFactory.createForClass(PrintConfigEntity);

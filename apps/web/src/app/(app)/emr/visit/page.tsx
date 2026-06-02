@@ -26,7 +26,7 @@ import { VISIT_TONE } from "@/lib/status-tones";
 import { PatientVitals } from "@/components/patient-vitals";
 import { PatientTreatment } from "@/components/patient-treatment";
 import { getPrintConfig } from "@/lib/print-config-api";
-import { openPrintWindow } from "@/lib/print-utils";
+import { openPrintWindow, buildPatientMeta, cfg } from "@/lib/print-utils";
 
 /* ─── Read-only field ────────────────────────────────────────────────── */
 function ReadField({ label, value }: { label: string; value?: string }) {
@@ -334,8 +334,19 @@ function printVisit(params: {
   templateTabs: EmrTabConfig[];
   clinicalNotes: Record<string, Record<string, string | number | boolean>>;
   printConfig?: import("@his/shared").PrintConfig;
+  patientRaw?: import("@/lib/print-utils").PrintPatientInfo;
 }) {
   const { visit, patientName, patientCode, chiefComplaint, symptoms, diagnosis, notes, templateTabs, clinicalNotes, printConfig } = params;
+
+  const c = cfg(printConfig);
+  const patientBlock = params.patientRaw
+    ? buildPatientMeta(params.patientRaw, c)
+    : `<div class="p-meta">
+        <div class="p-meta-block"><span>Өвчтөн</span><strong>${patientName}</strong></div>
+        <div class="p-meta-block"><span>Код</span><strong style="font-family:monospace">${patientCode}</strong></div>
+        <div class="p-meta-block"><span>Эмч</span><strong>${visit.doctorName}</strong></div>
+        <div class="p-meta-block" style="text-align:right"><span>Огноо</span><strong>${new Date(visit.visitDate).toLocaleString("mn-MN")}</strong></div>
+       </div>`;
 
   const basicFields = [
     { label: "Зовиур",      value: chiefComplaint },
@@ -387,9 +398,8 @@ function printVisit(params: {
   }).join("");
 
   openPrintWindow("Үзлэгийн карт", "ҮЗЛЭГИЙН КАРТ / EMR VISIT", `
-    <div class="p-meta">
-      <div class="p-meta-block"><span>Өвчтөн</span><strong>${patientName}</strong></div>
-      <div class="p-meta-block"><span>Код</span><strong style="font-family:monospace">${patientCode}</strong></div>
+    ${patientBlock}
+    <div class="p-meta" style="margin-bottom:12px">
       <div class="p-meta-block"><span>Эмч</span><strong>${visit.doctorName}</strong></div>
       <div class="p-meta-block" style="text-align:right"><span>Огноо</span><strong>${new Date(visit.visitDate).toLocaleString("mn-MN")}</strong></div>
     </div>
@@ -600,6 +610,17 @@ function VisitForm() {
                   templateTabs,
                   clinicalNotes,
                   printConfig,
+                  patientRaw: patient.data ? {
+                    name: `${patient.data.lastName} ${patient.data.firstName}`,
+                    patientCode: patient.data.patientCode,
+                    registerNumber: patient.data.registerNumber,
+                    birthDate: patient.data.birthDate,
+                    gender: patient.data.gender,
+                    phone: patient.data.phone,
+                    address: patient.data.address,
+                    bloodType: patient.data.bloodType,
+                    attendingDoctorName: patient.data.attendingDoctorName,
+                  } : undefined,
                 })
               }
             >

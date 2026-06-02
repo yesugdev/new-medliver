@@ -84,6 +84,17 @@ export default function PrintSettingsPage() {
   const [pageOrientation,  setPageOrientation]  = useState<"portrait" | "landscape">("portrait");
   const [footerNote,       setFooterNote]       = useState("");
 
+  /* Patient fields */
+  const [showPatientCode,      setShowPatientCode]      = useState(true);
+  const [showPatientRegister,  setShowPatientRegister]  = useState(true);
+  const [showPatientAge,       setShowPatientAge]       = useState(true);
+  const [showPatientGender,    setShowPatientGender]    = useState(true);
+  const [showPatientPhone,     setShowPatientPhone]     = useState(true);
+  const [showPatientAddress,   setShowPatientAddress]   = useState(false);
+  const [showPatientBloodType, setShowPatientBloodType] = useState(false);
+  const [showPatientBirthDate, setShowPatientBirthDate] = useState(false);
+  const [showPatientDoctor,    setShowPatientDoctor]    = useState(false);
+
   /* Fill form when data loads */
   useEffect(() => {
     if (!saved) return;
@@ -102,6 +113,15 @@ export default function PrintSettingsPage() {
     setPageSize((saved.pageSize as "A4" | "A5") ?? "A4");
     setPageOrientation((saved.pageOrientation as "portrait" | "landscape") ?? "portrait");
     setFooterNote(saved.footerNote ?? "");
+    setShowPatientCode(saved.showPatientCode ?? true);
+    setShowPatientRegister(saved.showPatientRegister ?? true);
+    setShowPatientAge(saved.showPatientAge ?? true);
+    setShowPatientGender(saved.showPatientGender ?? true);
+    setShowPatientPhone(saved.showPatientPhone ?? true);
+    setShowPatientAddress(saved.showPatientAddress ?? false);
+    setShowPatientBloodType(saved.showPatientBloodType ?? false);
+    setShowPatientBirthDate(saved.showPatientBirthDate ?? false);
+    setShowPatientDoctor(saved.showPatientDoctor ?? false);
   }, [saved]);
 
   /* Logo file upload → base64 */
@@ -146,6 +166,9 @@ export default function PrintSettingsPage() {
         headerBgColor, headerTextColor,
         fontSize, pageSize, pageOrientation,
         footerNote: footerNote || undefined,
+        showPatientCode, showPatientRegister, showPatientAge,
+        showPatientGender, showPatientPhone, showPatientAddress,
+        showPatientBloodType, showPatientBirthDate, showPatientDoctor,
       }),
     onSuccess: () => {
       toast({ title: "Хэвлэх загвар хадгалагдлаа", variant: "success" });
@@ -414,6 +437,44 @@ export default function PrintSettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Patient fields */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Өвчтөний мэдээлэл — харагдах талбарууд</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {([
+              { key: "showPatientCode",      label: "Өвчтөний код",      state: showPatientCode,      set: setShowPatientCode },
+              { key: "showPatientRegister",  label: "Регистрийн дугаар", state: showPatientRegister,  set: setShowPatientRegister },
+              { key: "showPatientAge",       label: "Нас",               state: showPatientAge,       set: setShowPatientAge },
+              { key: "showPatientBirthDate", label: "Төрсөн огноо",      state: showPatientBirthDate, set: setShowPatientBirthDate },
+              { key: "showPatientGender",    label: "Хүйс",              state: showPatientGender,    set: setShowPatientGender },
+              { key: "showPatientPhone",     label: "Утас",              state: showPatientPhone,     set: setShowPatientPhone },
+              { key: "showPatientAddress",   label: "Хаяг",              state: showPatientAddress,   set: setShowPatientAddress },
+              { key: "showPatientBloodType", label: "Цусны бүлэг",       state: showPatientBloodType, set: setShowPatientBloodType },
+              { key: "showPatientDoctor",    label: "Хяналтын эмч",      state: showPatientDoctor,    set: setShowPatientDoctor },
+            ] as const).map((f) => (
+              <label
+                key={f.key}
+                className="flex items-center gap-2.5 rounded-lg border border-border px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors"
+              >
+                <input
+                  type="checkbox"
+                  checked={f.state}
+                  onChange={(e) => (f.set as (v: boolean) => void)(e.target.checked)}
+                  className="h-4 w-4 accent-primary rounded"
+                />
+                <span className="text-sm">{f.label}</span>
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mt-3">
+            Сонгосон талбарууд бүх хэвлэх маягтын өвчтөний мэдээллийн хэсэгт харагдана.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Live mini preview */}
       <Card>

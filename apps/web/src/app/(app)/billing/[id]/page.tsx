@@ -20,8 +20,9 @@ import {
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
 import { getInvoice, recordPayment, cancelInvoice } from "@/lib/billing-api";
+import { getPatient } from "@/lib/patients-api";
 import { getPrintConfig } from "@/lib/print-config-api";
-import { openPrintWindow } from "@/lib/print-utils";
+import { openPrintWindow, buildPatientMeta, cfg, type PrintPatientInfo } from "@/lib/print-utils";
 import { INVOICE_TONE } from "@/lib/status-tones";
 import { formatMnt } from "@/lib/format";
 import { formatDateTimeMn } from "@/lib/utils";
@@ -32,7 +33,11 @@ import type { Invoice } from "@his/shared";
 const METHODS: PaymentMethod[] = ["cash", "card", "transfer", "insurance"];
 
 /* ─── Print function ─────────────────────────────────────────────── */
-function printInvoice(inv: Invoice, config?: Partial<PrintConfig>) {
+function printInvoice(
+  inv: Invoice,
+  config?: Partial<PrintConfig>,
+  patient?: PrintPatientInfo,
+) {
   const rows = inv.items.map((it, idx) => `
     <tr style="background:${idx % 2 === 0 ? "#fff" : "#f8fafc"};border-bottom:1px solid #e2e8f0">
       <td style="padding:8px 12px">${it.name}</td>
@@ -53,10 +58,18 @@ function printInvoice(inv: Invoice, config?: Partial<PrintConfig>) {
 
   const statusColor = inv.status === "paid" ? "#16a34a" : inv.status === "cancelled" ? "#dc2626" : "#ea580c";
 
+  const c = cfg(config);
+  const patientBlock = patient
+    ? buildPatientMeta(patient, c)
+    : `<div class="p-meta">
+        <div class="p-meta-block"><span>Өвчтөн</span><strong>${inv.patientName}</strong></div>
+        <div class="p-meta-block"><span>Код</span><strong style="font-family:monospace">${inv.patientCode}</strong></div>
+       </div>`;
+
   openPrintWindow("Нэхэмжлэл", "НЭХЭМЖЛЭЛ / INVOICE", `
-    <div class="p-meta">
+    ${patientBlock}
+    <div class="p-meta" style="margin-bottom:12px">
       <div class="p-meta-block"><span>Нэхэмжлэлийн дугаар</span><strong style="font-family:monospace">${inv.invoiceNumber}</strong></div>
-      <div class="p-meta-block"><span>Өвчтөн</span><strong>${inv.patientName} — ${inv.patientCode}</strong></div>
       <div class="p-meta-block" style="text-align:right"><span>Огноо</span><strong>${formatDateTimeMn(inv.createdAt)}</strong></div>
     </div>
 
@@ -124,6 +137,13 @@ export default function InvoiceDetailPage({
     staleTime: 5 * 60_000,
   });
 
+  const { data: patientData } = useQuery({
+    queryKey: ["patient", inv?.patientId],
+    queryFn: () => getPatient(inv!.patientId),
+    enabled: !!inv?.patientId,
+    staleTime: 10 * 60_000,
+  });
+
   const payMut = useMutation({
     mutationFn: () => recordPayment(id, { amount, method }),
     onSuccess: () => {
@@ -174,7 +194,17 @@ export default function InvoiceDetailPage({
         </div>
         <div className="flex items-center gap-2">
           <Badge tone={INVOICE_TONE[inv.status]}>{INVOICE_STATUS_LABELS_MN[inv.status]}</Badge>
-          <Button variant="outline" size="sm" onClick={() => printInvoice(inv, printConfig)}>
+          <Button variant="outline" size="sm" onClick={() => printInvoice(inv, printConfig, patientData ? {
+            name: `${patientData.lastName} ${patientData.firstName}`,
+            patientCode: patientData.patientCode,
+            registerNumber: patientData.registerNumber,
+            birthDate: patientData.birthDate,
+            gender: patientData.gender,
+            phone: patientData.phone,
+            address: patientData.address,
+            bloodType: patientData.bloodType,
+            attendingDoctorName: patientData.attendingDoctorName,
+          } : undefined)}>
             <Printer className="h-4 w-4" />
             Хэвлэх
           </Button>

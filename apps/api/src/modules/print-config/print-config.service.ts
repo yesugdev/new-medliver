@@ -30,7 +30,16 @@ export class PrintConfigService {
       fontSize:         doc.fontSize,
       pageSize:         doc.pageSize as "A4" | "A5",
       pageOrientation:  doc.pageOrientation as "portrait" | "landscape",
-      footerNote:       doc.footerNote,
+      footerNote:           doc.footerNote,
+      showPatientCode:      doc.showPatientCode,
+      showPatientRegister:  doc.showPatientRegister,
+      showPatientAge:       doc.showPatientAge,
+      showPatientGender:    doc.showPatientGender,
+      showPatientPhone:     doc.showPatientPhone,
+      showPatientAddress:   doc.showPatientAddress,
+      showPatientBloodType: doc.showPatientBloodType,
+      showPatientBirthDate: doc.showPatientBirthDate,
+      showPatientDoctor:    doc.showPatientDoctor,
       updatedAt:        (doc as any).updatedAt?.toISOString?.() ?? new Date().toISOString(),
     };
   }

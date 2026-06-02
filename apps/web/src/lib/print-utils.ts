@@ -1,22 +1,95 @@
 import type { PrintConfig } from "@his/shared";
 
 export const DEFAULT_PRINT_CONFIG: Omit<PrintConfig, "id" | "updatedAt"> = {
-  orgName:         "MEDLIVER",
-  showLogo:        false,
-  showStamp:       false,
-  headerBgColor:   "#1e293b",
-  headerTextColor: "#ffffff",
-  fontSize:        13,
-  pageSize:        "A4",
-  pageOrientation: "portrait",
+  orgName:              "MEDLIVER",
+  showLogo:             false,
+  showStamp:            false,
+  headerBgColor:        "#1e293b",
+  headerTextColor:      "#ffffff",
+  fontSize:             13,
+  pageSize:             "A4",
+  pageOrientation:      "portrait",
+  showPatientCode:      true,
+  showPatientRegister:  true,
+  showPatientAge:       true,
+  showPatientGender:    true,
+  showPatientPhone:     true,
+  showPatientAddress:   false,
+  showPatientBloodType: false,
+  showPatientBirthDate: false,
+  showPatientDoctor:    false,
 };
 
-function cfg(config?: Partial<PrintConfig>) {
+/** Patient info passed to print functions */
+export interface PrintPatientInfo {
+  name: string;
+  patientCode?: string;
+  registerNumber?: string;
+  birthDate?: string;     // ISO string
+  gender?: string;        // "male" | "female" | "other"
+  phone?: string;
+  address?: string;
+  bloodType?: string;
+  attendingDoctorName?: string;
+}
+
+const GENDER_MN: Record<string, string> = {
+  male: "Эрэгтэй", female: "Эмэгтэй", other: "Бусад",
+};
+
+function calcAge(birthDate?: string): number | null {
+  if (!birthDate) return null;
+  const birth = new Date(birthDate);
+  const now   = new Date();
+  let age = now.getFullYear() - birth.getFullYear();
+  const m = now.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) age--;
+  return age;
+}
+
+/** Build a patient info block HTML for print documents */
+export function buildPatientMeta(
+  patient: PrintPatientInfo,
+  config: CfgType,
+): string {
+  const rows: string[] = [];
+  const cell = (label: string, value: string, mono = false) =>
+    `<div class="p-meta-block"><span>${label}</span><strong${mono ? ' style="font-family:monospace"' : ""}>${value}</strong></div>`;
+
+  // Name always shown
+  rows.push(cell("Өвчтөн", patient.name));
+  if (config.showPatientCode && patient.patientCode)
+    rows.push(cell("Өвчтөний код", patient.patientCode, true));
+  if (config.showPatientRegister && patient.registerNumber)
+    rows.push(cell("Регистр", patient.registerNumber, true));
+  if (config.showPatientBirthDate && patient.birthDate)
+    rows.push(cell("Төрсөн огноо", new Date(patient.birthDate).toLocaleDateString("mn-MN")));
+  if (config.showPatientAge) {
+    const age = calcAge(patient.birthDate);
+    if (age !== null) rows.push(cell("Нас", `${age} нас`));
+  }
+  if (config.showPatientGender && patient.gender)
+    rows.push(cell("Хүйс", GENDER_MN[patient.gender] ?? patient.gender));
+  if (config.showPatientPhone && patient.phone)
+    rows.push(cell("Утас", patient.phone, true));
+  if (config.showPatientAddress && patient.address)
+    rows.push(cell("Хаяг", patient.address));
+  if (config.showPatientBloodType && patient.bloodType)
+    rows.push(cell("Цусны бүлэг", patient.bloodType));
+  if (config.showPatientDoctor && patient.attendingDoctorName)
+    rows.push(cell("Хяналтын эмч", patient.attendingDoctorName));
+
+  return `<div class="p-meta">${rows.join("")}</div>`;
+}
+
+export function cfg(config?: Partial<PrintConfig>) {
   return { ...DEFAULT_PRINT_CONFIG, ...config };
 }
 
+type CfgType = ReturnType<typeof cfg>;
+
 /** Build the <style> + header block */
-function buildHead(c: ReturnType<typeof cfg>, subtitle: string): string {
+function buildHead(c: CfgType, subtitle: string): string {
   const logoHtml =
     c.showLogo && c.logoUrl
       ? `<img src="${c.logoUrl}" style="height:52px;object-fit:contain;margin-bottom:6px;display:block;margin-left:auto;margin-right:auto" />`
@@ -67,7 +140,7 @@ function buildHead(c: ReturnType<typeof cfg>, subtitle: string): string {
   `;
 }
 
-function buildFooter(c: ReturnType<typeof cfg>): string {
+function buildFooter(c: CfgType): string {
   const rightCorner =
     c.showStamp && c.stampUrl
       ? `<img src="${c.stampUrl}" style="height:72px;width:72px;object-fit:contain;opacity:0.8" alt="тамга" />`

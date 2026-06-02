@@ -23,6 +23,15 @@ class UpdatePrintConfigDto {
   @IsOptional() @IsIn(["A4", "A5"])           pageSize?: "A4" | "A5";
   @IsOptional() @IsIn(["portrait", "landscape"]) pageOrientation?: "portrait" | "landscape";
   @IsOptional() @IsString() @MaxLength(200)  footerNote?: string;
+  @IsOptional() @IsBoolean() showPatientCode?: boolean;
+  @IsOptional() @IsBoolean() showPatientRegister?: boolean;
+  @IsOptional() @IsBoolean() showPatientAge?: boolean;
+  @IsOptional() @IsBoolean() showPatientGender?: boolean;
+  @IsOptional() @IsBoolean() showPatientPhone?: boolean;
+  @IsOptional() @IsBoolean() showPatientAddress?: boolean;
+  @IsOptional() @IsBoolean() showPatientBloodType?: boolean;
+  @IsOptional() @IsBoolean() showPatientBirthDate?: boolean;
+  @IsOptional() @IsBoolean() showPatientDoctor?: boolean;
 }
 
 @Controller("print-config")

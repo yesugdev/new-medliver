@@ -5,16 +5,28 @@ export interface PrintConfig {
   orgAddress?: string;
   orgPhone?: string;
   orgEmail?: string;
-  logoUrl?: string;         // URL or base64 data URI
+  logoUrl?: string;
   showLogo: boolean;
-  stampUrl?: string;        // Тамга / seal image URL or base64
+  stampUrl?: string;
   showStamp: boolean;
-  headerBgColor: string;    // CSS hex e.g. "#1e293b"
-  headerTextColor: string;  // CSS hex e.g. "#ffffff"
-  fontSize: number;         // 11–16
+  headerBgColor: string;
+  headerTextColor: string;
+  fontSize: number;
   pageSize: "A4" | "A5";
   pageOrientation: "portrait" | "landscape";
   footerNote?: string;
+
+  /* ── Өвчтөний мэдээллийн харагдах талбарууд ── */
+  showPatientCode: boolean;
+  showPatientRegister: boolean;
+  showPatientAge: boolean;
+  showPatientGender: boolean;
+  showPatientPhone: boolean;
+  showPatientAddress: boolean;
+  showPatientBloodType: boolean;
+  showPatientBirthDate: boolean;
+  showPatientDoctor: boolean;
+
   updatedAt: string;
 }
 
@@ -34,4 +46,13 @@ export interface UpdatePrintConfigInput {
   pageSize?: "A4" | "A5";
   pageOrientation?: "portrait" | "landscape";
   footerNote?: string;
+  showPatientCode?: boolean;
+  showPatientRegister?: boolean;
+  showPatientAge?: boolean;
+  showPatientGender?: boolean;
+  showPatientPhone?: boolean;
+  showPatientAddress?: boolean;
+  showPatientBloodType?: boolean;
+  showPatientBirthDate?: boolean;
+  showPatientDoctor?: boolean;
 }

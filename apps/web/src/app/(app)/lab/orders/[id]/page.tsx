@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import type { PrintConfig } from "@his/shared";
 import { getPrintConfig } from "@/lib/print-config-api";
-import { openPrintWindow } from "@/lib/print-utils";
+import { openPrintWindow, buildPatientMeta, cfg, type PrintPatientInfo } from "@/lib/print-utils";
+import { getPatient } from "@/lib/patients-api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Loader2, CheckCircle2, FlaskConical, AlertTriangle, XCircle, Printer,
@@ -37,7 +38,11 @@ const INTERP_LABELS: Record<string, string> = {
   critical_low: "Маш бага", critical_high: "Маш их",
 };
 
-function printLabOrder(order: import("@his/shared").LabOrder, config?: Partial<PrintConfig>) {
+function printLabOrder(
+  order: import("@his/shared").LabOrder,
+  config?: Partial<PrintConfig>,
+  patient?: PrintPatientInfo,
+) {
 
   const interpColor: Record<string, string> = {
     normal:        "#16a34a",
@@ -74,10 +79,18 @@ function printLabOrder(order: import("@his/shared").LabOrder, config?: Partial<P
     }).join("")}
   `).join("");
 
+  const c = cfg(config);
+  const patientBlock = patient
+    ? buildPatientMeta(patient, c)
+    : `<div class="p-meta">
+        <div class="p-meta-block"><span>Өвчтөн</span><strong>${order.patientName}</strong></div>
+        <div class="p-meta-block"><span>Код</span><strong style="font-family:monospace">${order.patientCode}</strong></div>
+       </div>`;
+
   openPrintWindow("Шинжилгээний хариу", "ШИНЖИЛГЭЭНИЙ ХАРИУ / LAB REPORT", `
-    <div class="p-meta">
+    ${patientBlock}
+    <div class="p-meta" style="margin-bottom:12px">
       <div class="p-meta-block"><span>Захиалгын дугаар</span><strong style="font-family:monospace">${order.orderNumber}</strong></div>
-      <div class="p-meta-block"><span>Өвчтөн</span><strong>${order.patientName} — ${order.patientCode}</strong></div>
       <div class="p-meta-block"><span>Захиалсан эмч</span><strong>${order.doctorName}</strong></div>
       <div class="p-meta-block" style="text-align:right"><span>Огноо</span><strong>${new Date(order.orderedAt).toLocaleString("mn-MN")}</strong></div>
     </div>
@@ -226,6 +239,7 @@ export default function LabOrderDetailPage() {
     queryFn: getPrintConfig,
     staleTime: 5 * 60_000,
   });
+
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
@@ -234,6 +248,13 @@ export default function LabOrderDetailPage() {
   const { data: order, isLoading } = useQuery({
     queryKey: ["lab-order", id],
     queryFn: () => getLabOrder(id),
+  });
+
+  const { data: patientData } = useQuery({
+    queryKey: ["patient", order?.patientId],
+    queryFn: () => getPatient(order!.patientId),
+    enabled: !!order?.patientId,
+    staleTime: 10 * 60_000,
   });
 
   /* Pre-fill inputs with existing results when order loads */
@@ -329,7 +350,17 @@ export default function LabOrderDetailPage() {
             {LAB_PRIORITY_LABELS_MN[order.priority as import("@his/shared").LabPriority]}
           </span>
         </div>
-        <Button variant="outline" size="sm" onClick={() => printLabOrder(order, printConfig)}>
+        <Button variant="outline" size="sm" onClick={() => printLabOrder(order, printConfig, patientData ? {
+          name: `${patientData.lastName} ${patientData.firstName}`,
+          patientCode: patientData.patientCode,
+          registerNumber: patientData.registerNumber,
+          birthDate: patientData.birthDate,
+          gender: patientData.gender,
+          phone: patientData.phone,
+          address: patientData.address,
+          bloodType: patientData.bloodType,
+          attendingDoctorName: patientData.attendingDoctorName,
+        } : undefined)}>
           <Printer className="h-4 w-4" />
           Хэвлэх
         </Button>
