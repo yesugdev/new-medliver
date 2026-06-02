@@ -11,3 +11,4 @@ export * from "./medical-history";
 export * from "./treatment";
 export * from "./drug";
 export * from "./print-config";
+export * from "./treatment-task";

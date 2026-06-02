@@ -1,0 +1,144 @@
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { InjectModel } from "@nestjs/mongoose";
+import { Model, FilterQuery, Types } from "mongoose";
+import type { AuthUser, TreatmentTask } from "@his/shared";
+import { TreatmentTaskEntity, TreatmentTaskDocument } from "./treatment-task.schema";
+import { CreateTreatmentTaskDto, UpdateTreatmentTaskDto, ListTreatmentTasksDto } from "./dto/treatment-task.dto";
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+@Injectable()
+export class TreatmentTaskService {
+  constructor(
+    @InjectModel(TreatmentTaskEntity.name)
+    private readonly model: Model<TreatmentTaskDocument>,
+  ) {}
+
+  private toShared(doc: TreatmentTaskDocument): TreatmentTask {
+    return {
+      id:            doc._id.toString(),
+      patientId:     doc.patientId.toString(),
+      patientName:   doc.patientName,
+      patientCode:   doc.patientCode,
+      drugName:      doc.drugName,
+      route:         doc.route,
+      frequency:     doc.frequency,
+      perDose:       doc.perDose,
+      notes:         doc.notes,
+      scheduledDate: doc.scheduledDate,
+      status:        doc.status as TreatmentTask["status"],
+      doneAt:        doc.doneAt?.toISOString(),
+      doneById:      doc.doneById?.toString(),
+      doneByName:    doc.doneByName,
+      doneNote:      doc.doneNote,
+      sourceRecordId: doc.sourceRecordId?.toString(),
+      createdById:   doc.createdById.toString(),
+      createdByName: doc.createdByName,
+      createdAt:     (doc as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
+    };
+  }
+
+  async list(query: ListTreatmentTasksDto): Promise<TreatmentTask[]> {
+    const filter: FilterQuery<TreatmentTaskDocument> = {};
+    filter.scheduledDate = query.date ?? todayStr();
+    if (query.patientId) filter.patientId = new Types.ObjectId(query.patientId);
+    if (query.status)    filter.status    = query.status;
+
+    const docs = await this.model
+      .find(filter)
+      .sort({ status: 1, patientName: 1, drugName: 1 })
+      .exec();
+    return docs.map((d) => this.toShared(d));
+  }
+
+  async create(dto: CreateTreatmentTaskDto, actor: AuthUser): Promise<TreatmentTask> {
+    // Fetch patient info — patientId provided, name/code from dto or lookup
+    const doc = await this.model.create({
+      patientId:     new Types.ObjectId(dto.patientId),
+      patientName:   "—",   // will be updated by bulk create below
+      patientCode:   "—",
+      drugName:      dto.drugName,
+      route:         dto.route,
+      frequency:     dto.frequency,
+      perDose:       dto.perDose,
+      notes:         dto.notes,
+      scheduledDate: dto.scheduledDate ?? todayStr(),
+      createdById:   new Types.ObjectId(actor.id),
+      createdByName: actor.fullName ?? actor.email,
+    });
+    return this.toShared(doc);
+  }
+
+  /** Called by TreatmentService after saving a prescription */
+  async createFromRecord(params: {
+    patientId: string;
+    patientName: string;
+    patientCode: string;
+    drugs: Array<{
+      drugName: string;
+      route?: string;
+      frequency?: number;
+      perDose?: number;
+      duration?: number;
+      notes?: string;
+    }>;
+    sourceRecordId: string;
+    actor: AuthUser;
+  }): Promise<void> {
+    const { patientId, patientName, patientCode, drugs, sourceRecordId, actor } = params;
+    const today = new Date();
+
+    const docs = drugs.flatMap((d) => {
+      const days = Math.max(d.duration ?? 1, 1);
+      return Array.from({ length: days }, (_, i) => {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        return {
+          patientId:     new Types.ObjectId(patientId),
+          patientName,
+          patientCode,
+          drugName:      d.drugName,
+          route:         d.route,
+          frequency:     d.frequency,
+          perDose:       d.perDose,
+          notes:         d.notes,
+          scheduledDate: date.toISOString().slice(0, 10),
+          sourceRecordId: new Types.ObjectId(sourceRecordId),
+          createdById:   new Types.ObjectId(actor.id),
+          createdByName: actor.fullName ?? actor.email,
+        };
+      });
+    });
+
+    if (docs.length > 0) {
+      await this.model.insertMany(docs);
+    }
+  }
+
+  async updateStatus(id: string, dto: UpdateTreatmentTaskDto, actor: AuthUser): Promise<TreatmentTask> {
+    const doc = await this.model.findById(id).exec();
+    if (!doc) throw new NotFoundException("Даалгавар олдсонгүй");
+
+    doc.status = dto.status;
+    if (dto.status === "done") {
+      doc.doneAt     = new Date();
+      doc.doneById   = new Types.ObjectId(actor.id);
+      doc.doneByName = actor.fullName ?? actor.email;
+      doc.doneNote   = dto.doneNote;
+    } else {
+      doc.doneAt     = undefined;
+      doc.doneById   = undefined;
+      doc.doneByName = undefined;
+      doc.doneNote   = undefined;
+    }
+
+    await doc.save();
+    return this.toShared(doc);
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.model.findByIdAndDelete(id).exec();
+  }
+}

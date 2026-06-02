@@ -13,6 +13,7 @@ import {
   FileSliders,
   Pill,
   Printer,
+  ClipboardCheck,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@his/shared";
@@ -67,6 +68,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Үзлэгийн карт",
     icon: Stethoscope,
     roles: [ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE],
+  },
+  {
+    href: "/treatment-tasks",
+    label: "Эмчилгээний ToDo",
+    icon: ClipboardCheck,
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION],
   },
   {
     href: "/billing",

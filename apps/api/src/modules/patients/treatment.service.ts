@@ -3,15 +3,20 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import type { AuthUser, TreatmentRecord } from "@his/shared";
 import { Treatment, TreatmentDocument } from "./treatment.schema";
+import { Patient, PatientDocument } from "./patient.schema";
 import { CreateTreatmentDto } from "./dto/create-treatment.dto";
 import { DrugsService } from "../drugs/drugs.service";
+import { TreatmentTaskService } from "../treatment-tasks/treatment-task.service";
 
 @Injectable()
 export class TreatmentService {
   constructor(
     @InjectModel(Treatment.name)
     private readonly model: Model<TreatmentDocument>,
+    @InjectModel(Patient.name)
+    private readonly patientModel: Model<PatientDocument>,
     private readonly drugsService: DrugsService,
+    private readonly taskService: TreatmentTaskService,
   ) {}
 
   private toShared(doc: TreatmentDocument): TreatmentRecord {
@@ -49,10 +54,30 @@ export class TreatmentService {
     // Deduct stock for inventory drugs
     for (const drug of dto.drugs) {
       if (drug.drugId && drug.totalQuantity && drug.totalQuantity > 0) {
-        await this.drugsService.deductStock(drug.drugId, drug.totalQuantity).catch(() => {
-          // Don't fail the treatment record if stock deduction fails
-        });
+        await this.drugsService.deductStock(drug.drugId, drug.totalQuantity).catch(() => {});
       }
+    }
+
+    // Auto-create treatment tasks
+    const patient = await this.patientModel.findById(patientId).lean().exec();
+    if (patient) {
+      await this.taskService.createFromRecord({
+        patientId,
+        patientName:  `${patient.lastName} ${patient.firstName}`,
+        patientCode:  patient.patientCode,
+        drugs: dto.drugs
+          .filter((d) => d.nameFormDosage.trim())
+          .map((d) => ({
+            drugName:  d.nameFormDosage,
+            route:     d.route,
+            frequency: d.frequency,
+            perDose:   d.perDose,
+            duration:  d.duration,
+            notes:     d.notes,
+          })),
+        sourceRecordId: doc._id.toString(),
+        actor,
+      }).catch(() => {});
     }
 
     return this.toShared(doc);
