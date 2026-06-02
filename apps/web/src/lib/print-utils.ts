@@ -57,7 +57,6 @@ function buildHead(c: ReturnType<typeof cfg>, subtitle: string): string {
       .p-meta-block strong{ display:block; margin-top:2px; }
       .p-footer{ margin-top:24px; display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid #ddd; padding-top:10px; font-size:${c.fontSize - 2}px; color:#64748b; }
       .p-badge{ border:2px solid ${c.headerBgColor}; color:${c.headerBgColor}; padding:3px 14px; border-radius:4px; font-weight:bold; font-size:${c.fontSize - 1}px; letter-spacing:1px; }
-      .p-stamp-img{ position:fixed; bottom:1cm; right:1cm; width:90px; height:90px; object-fit:contain; opacity:0.75; }
     </style>
     <div class="p-header">
       ${logoHtml}
@@ -69,17 +68,16 @@ function buildHead(c: ReturnType<typeof cfg>, subtitle: string): string {
 }
 
 function buildFooter(c: ReturnType<typeof cfg>): string {
-  const stampHtml =
+  const rightCorner =
     c.showStamp && c.stampUrl
-      ? `<img src="${c.stampUrl}" class="p-stamp-img" alt="тамга" />`
-      : "";
+      ? `<img src="${c.stampUrl}" style="height:72px;width:72px;object-fit:contain;opacity:0.8" alt="тамга" />`
+      : `<span class="p-badge">${c.orgName}</span>`;
 
   return `
-    ${stampHtml}
     <div class="p-footer">
       <span>Хэвлэсэн: ${new Date().toLocaleString("mn-MN")}</span>
       ${c.footerNote ? `<span style="text-align:center;flex:1;padding:0 12px">${c.footerNote}</span>` : ""}
-      <span class="p-badge">${c.orgName}</span>
+      ${rightCorner}
     </div>
   `;
 }

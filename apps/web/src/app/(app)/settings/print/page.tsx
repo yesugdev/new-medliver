@@ -450,12 +450,17 @@ export default function PrintSettingsPage() {
           <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground border-t border-dashed border-border pt-2">
             <span>Хэвлэсэн: {new Date().toLocaleDateString("mn-MN")}</span>
             {footerNote && <span>{footerNote}</span>}
-            <span
-              className="px-3 py-0.5 rounded border font-semibold"
-              style={{ borderColor: headerBgColor, color: headerBgColor }}
-            >
-              {orgName || "MEDLIVER"}
-            </span>
+            {showStamp && stampUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={stampUrl} alt="тамга" className="h-12 w-12 object-contain opacity-75" />
+            ) : (
+              <span
+                className="px-3 py-0.5 rounded border font-semibold"
+                style={{ borderColor: headerBgColor, color: headerBgColor }}
+              >
+                {orgName || "MEDLIVER"}
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>
