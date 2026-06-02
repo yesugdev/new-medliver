@@ -15,6 +15,7 @@ import { StatsModule } from "./modules/stats/stats.module";
 import { LabModule } from "./modules/lab/lab.module";
 import { VitalsModule } from "./modules/vitals/vitals.module";
 import { DrugsModule } from "./modules/drugs/drugs.module";
+import { PrintConfigModule } from "./modules/print-config/print-config.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { RolesGuard } from "./common/guards/roles.guard";
 
@@ -45,6 +46,7 @@ import { RolesGuard } from "./common/guards/roles.guard";
     LabModule,
     VitalsModule,
     DrugsModule,
+    PrintConfigModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

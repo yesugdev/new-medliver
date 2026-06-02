@@ -25,6 +25,8 @@ import { formatDateTimeMn } from "@/lib/utils";
 import { VISIT_TONE } from "@/lib/status-tones";
 import { PatientVitals } from "@/components/patient-vitals";
 import { PatientTreatment } from "@/components/patient-treatment";
+import { getPrintConfig } from "@/lib/print-config-api";
+import { openPrintWindow } from "@/lib/print-utils";
 
 /* ─── Read-only field ────────────────────────────────────────────────── */
 function ReadField({ label, value }: { label: string; value?: string }) {
@@ -331,11 +333,9 @@ function printVisit(params: {
   notes: string;
   templateTabs: EmrTabConfig[];
   clinicalNotes: Record<string, Record<string, string | number | boolean>>;
+  printConfig?: import("@his/shared").PrintConfig;
 }) {
-  const win = window.open("", "_blank", "width=860,height=700");
-  if (!win) return;
-
-  const { visit, patientName, patientCode, chiefComplaint, symptoms, diagnosis, notes, templateTabs, clinicalNotes } = params;
+  const { visit, patientName, patientCode, chiefComplaint, symptoms, diagnosis, notes, templateTabs, clinicalNotes, printConfig } = params;
 
   const basicFields = [
     { label: "Зовиур",      value: chiefComplaint },
@@ -386,48 +386,20 @@ function printVisit(params: {
     </div>`;
   }).join("");
 
-  win.document.write(`<!DOCTYPE html>
-<html lang="mn"><head>
-<meta charset="UTF-8"/>
-<title>Үзлэгийн карт</title>
-<style>
-  @page{margin:1.5cm;size:A4}
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:Arial,sans-serif;font-size:13px;color:#1e293b;background:#fff}
-  table{width:100%;border-collapse:collapse}
-  .header{text-align:center;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}
-  .meta{display:flex;justify-content:space-between;margin-bottom:18px;font-size:12px;flex-wrap:wrap;gap:8px}
-  .meta-block span{color:#64748b;font-size:11px}
-  .meta-block strong{display:block;margin-top:2px}
-  .footer{margin-top:24px;display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:10px;font-size:11px;color:#64748b}
-</style>
-</head><body>
-<div class="header">
-  <div style="font-size:22px;font-weight:bold;letter-spacing:2px">MEDLIVER</div>
-  <div style="font-size:12px;color:#64748b;margin-top:4px">ҮЗЛЭГИЙН КАРТ / EMR VISIT</div>
-</div>
-<div class="meta">
-  <div class="meta-block"><span>Өвчтөн</span><strong>${patientName}</strong></div>
-  <div class="meta-block"><span>Код</span><strong style="font-family:monospace">${patientCode}</strong></div>
-  <div class="meta-block"><span>Эмч</span><strong>${visit.doctorName}</strong></div>
-  <div class="meta-block" style="text-align:right"><span>Огноо</span><strong>${new Date(visit.visitDate).toLocaleString("mn-MN")}</strong></div>
-</div>
-
-${basicFields.length > 0 ? `
-<div style="margin-bottom:20px">
-  <div style="font-size:13px;font-weight:700;border-bottom:2px solid #1e293b;padding-bottom:4px;margin-bottom:8px">Үзлэгийн мэдээлэл</div>
-  <table><tbody>${basicHtml}</tbody></table>
-</div>` : ""}
-
-${tabsHtml}
-
-<div class="footer">
-  <span>Хэвлэсэн: ${new Date().toLocaleString("mn-MN")}</span>
-  <span style="border:2px solid #1e293b;padding:3px 14px;border-radius:4px;font-weight:bold;letter-spacing:1px">MEDLIVER</span>
-</div>
-<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script>
-</body></html>`);
-  win.document.close();
+  openPrintWindow("Үзлэгийн карт", "ҮЗЛЭГИЙН КАРТ / EMR VISIT", `
+    <div class="p-meta">
+      <div class="p-meta-block"><span>Өвчтөн</span><strong>${patientName}</strong></div>
+      <div class="p-meta-block"><span>Код</span><strong style="font-family:monospace">${patientCode}</strong></div>
+      <div class="p-meta-block"><span>Эмч</span><strong>${visit.doctorName}</strong></div>
+      <div class="p-meta-block" style="text-align:right"><span>Огноо</span><strong>${new Date(visit.visitDate).toLocaleString("mn-MN")}</strong></div>
+    </div>
+    ${basicFields.length > 0 ? `
+    <div style="margin-bottom:20px">
+      <div style="font-size:14px;font-weight:700;border-bottom:2px solid #1e293b;padding-bottom:4px;margin-bottom:8px">Үзлэгийн мэдээлэл</div>
+      <table><tbody>${basicHtml}</tbody></table>
+    </div>` : ""}
+    ${tabsHtml}
+  `, printConfig);
 }
 
 /* ─── Main form ──────────────────────────────────────────────────────── */
@@ -472,6 +444,12 @@ function VisitForm() {
   const templateQuery = useQuery({
     queryKey: ["emr-template"],
     queryFn: getEmrTemplate,
+  });
+
+  const { data: printConfig } = useQuery({
+    queryKey: ["print-config"],
+    queryFn: getPrintConfig,
+    staleTime: 5 * 60_000,
   });
 
   const templateTabs: EmrTabConfig[] = templateQuery.data?.tabs ?? [];
@@ -621,6 +599,7 @@ function VisitForm() {
                   notes,
                   templateTabs,
                   clinicalNotes,
+                  printConfig,
                 })
               }
             >

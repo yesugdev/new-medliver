@@ -3,6 +3,9 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
+import type { PrintConfig } from "@his/shared";
+import { getPrintConfig } from "@/lib/print-config-api";
+import { openPrintWindow } from "@/lib/print-utils";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Loader2, CheckCircle2, FlaskConical, AlertTriangle, XCircle, Printer,
@@ -34,9 +37,7 @@ const INTERP_LABELS: Record<string, string> = {
   critical_low: "Маш бага", critical_high: "Маш их",
 };
 
-function printLabOrder(order: import("@his/shared").LabOrder) {
-  const win = window.open("", "_blank", "width=960,height=700");
-  if (!win) return;
+function printLabOrder(order: import("@his/shared").LabOrder, config?: Partial<PrintConfig>) {
 
   const interpColor: Record<string, string> = {
     normal:        "#16a34a",
@@ -73,48 +74,22 @@ function printLabOrder(order: import("@his/shared").LabOrder) {
     }).join("")}
   `).join("");
 
-  win.document.write(`<!DOCTYPE html>
-<html lang="mn"><head>
-<meta charset="UTF-8"/>
-<title>Шинжилгээний хариу</title>
-<style>
-  @page { margin:1.5cm; size:A4; }
-  *{box-sizing:border-box;margin:0;padding:0}
-  body{font-family:Arial,sans-serif;font-size:13px;color:#1e293b;background:#fff}
-  table{width:100%;border-collapse:collapse}
-  th{background:#1e293b;color:#fff;padding:8px 12px;text-align:left;font-size:11px;white-space:nowrap}
-  .header{text-align:center;border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:18px}
-  .meta{display:flex;justify-content:space-between;margin-bottom:18px;font-size:12px;gap:12px;flex-wrap:wrap}
-  .meta-block span{color:#64748b;font-size:11px}
-  .meta-block strong{display:block;margin-top:2px}
-  .footer{margin-top:24px;display:flex;justify-content:space-between;border-top:1px solid #ddd;padding-top:10px;font-size:11px;color:#64748b}
-</style>
-</head><body>
-<div class="header">
-  <div style="font-size:22px;font-weight:bold;letter-spacing:2px">MEDLIVER</div>
-  <div style="font-size:12px;color:#64748b;margin-top:4px">ШИНЖИЛГЭЭНИЙ ХАРИУ / LAB REPORT</div>
-</div>
-<div class="meta">
-  <div class="meta-block"><span>Захиалгын дугаар</span><strong style="font-family:monospace">${order.orderNumber}</strong></div>
-  <div class="meta-block"><span>Өвчтөн</span><strong>${order.patientName} — ${order.patientCode}</strong></div>
-  <div class="meta-block"><span>Захиалсан эмч</span><strong>${order.doctorName}</strong></div>
-  <div class="meta-block" style="text-align:right"><span>Огноо</span><strong>${new Date(order.orderedAt).toLocaleString("mn-MN")}</strong></div>
-</div>
-${order.clinicalNote ? `<div style="font-size:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:8px 12px;margin-bottom:14px"><b>Клиникийн тэмдэглэл:</b> ${order.clinicalNote}</div>` : ""}
-<table>
-  <thead><tr>
-    <th>Шинжилгээ</th><th>Код</th><th>Нэгж</th><th>Лавлах утга</th>
-    <th>Хариу</th><th>Дүгнэлт</th><th>Бүртгэсэн</th>
-  </tr></thead>
-  <tbody>${rows}</tbody>
-</table>
-<div class="footer">
-  <span>Хэвлэсэн: ${new Date().toLocaleString("mn-MN")}</span>
-  <span style="border:2px solid #1e293b;padding:3px 14px;border-radius:4px;font-weight:bold;letter-spacing:1px">MEDLIVER</span>
-</div>
-<script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script>
-</body></html>`);
-  win.document.close();
+  openPrintWindow("Шинжилгээний хариу", "ШИНЖИЛГЭЭНИЙ ХАРИУ / LAB REPORT", `
+    <div class="p-meta">
+      <div class="p-meta-block"><span>Захиалгын дугаар</span><strong style="font-family:monospace">${order.orderNumber}</strong></div>
+      <div class="p-meta-block"><span>Өвчтөн</span><strong>${order.patientName} — ${order.patientCode}</strong></div>
+      <div class="p-meta-block"><span>Захиалсан эмч</span><strong>${order.doctorName}</strong></div>
+      <div class="p-meta-block" style="text-align:right"><span>Огноо</span><strong>${new Date(order.orderedAt).toLocaleString("mn-MN")}</strong></div>
+    </div>
+    ${order.clinicalNote ? `<div style="font-size:12px;background:#fffbeb;border:1px solid #fde68a;border-radius:4px;padding:8px 12px;margin-bottom:14px"><b>Клиникийн тэмдэглэл:</b> ${order.clinicalNote}</div>` : ""}
+    <table>
+      <thead><tr>
+        <th>Шинжилгээ</th><th>Код</th><th>Нэгж</th><th>Лавлах утга</th>
+        <th>Хариу</th><th>Дүгнэлт</th><th>Бүртгэсэн</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `, config);
 }
 
 /* ─── Auto-interpret in the browser (mirrors backend logic) ────────── */
@@ -245,6 +220,12 @@ export default function LabOrderDetailPage() {
   const searchParams = useSearchParams();
   const fromPatient = searchParams.get("from") === "patient";
   const { toast } = useToast();
+
+  const { data: printConfig } = useQuery({
+    queryKey: ["print-config"],
+    queryFn: getPrintConfig,
+    staleTime: 5 * 60_000,
+  });
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
@@ -348,7 +329,7 @@ export default function LabOrderDetailPage() {
             {LAB_PRIORITY_LABELS_MN[order.priority as import("@his/shared").LabPriority]}
           </span>
         </div>
-        <Button variant="outline" size="sm" onClick={() => printLabOrder(order)}>
+        <Button variant="outline" size="sm" onClick={() => printLabOrder(order, printConfig)}>
           <Printer className="h-4 w-4" />
           Хэвлэх
         </Button>

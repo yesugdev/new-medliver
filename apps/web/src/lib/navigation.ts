@@ -12,6 +12,7 @@ import {
   FlaskConical,
   FileSliders,
   Pill,
+  Printer,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@his/shared";
@@ -101,6 +102,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/settings/emr-template",
     label: "EMR загвар",
     icon: FileSliders,
+    roles: [ROLES.ADMIN],
+  },
+  {
+    href: "/settings/print",
+    label: "Хэвлэх загвар",
+    icon: Printer,
     roles: [ROLES.ADMIN],
   },
 ];

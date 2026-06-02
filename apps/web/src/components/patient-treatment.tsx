@@ -15,6 +15,8 @@ import { useToast } from "@/components/ui/toast";
 import { useAuthStore } from "@/stores/auth-store";
 import { createTreatment, deleteTreatment, listTreatments } from "@/lib/treatment-api";
 import { listDrugs } from "@/lib/drugs-api";
+import { getPrintConfig } from "@/lib/print-config-api";
+import { openPrintWindow } from "@/lib/print-utils";
 import { extractApiError } from "@/lib/api";
 import { formatDateTimeMn } from "@/lib/utils";
 
@@ -348,85 +350,39 @@ function AddTreatmentForm({
 }
 
 /* ─── Print helper ──────────────────────────────────────────────── */
-function printTreatment(record: TreatmentRecord) {
-  const win = window.open("", "_blank", "width=860,height=640");
-  if (!win) return;
-
+function printTreatment(record: TreatmentRecord, config?: import("@his/shared").PrintConfig) {
   const rows = record.drugs.map((d, i) => `
-    <tr style="background:${i % 2 === 0 ? "#fff" : "#f8fafc"}; border-bottom:1px solid #e2e8f0;">
-      <td style="padding:8px 10px; text-align:center; color:#64748b;">${i + 1}</td>
-      <td style="padding:8px 10px; font-weight:500;">${d.nameFormDosage || "—"}</td>
-      <td style="padding:8px 10px; text-align:center;">${d.totalQuantity ?? "—"}</td>
-      <td style="padding:8px 10px;">${d.route || "—"}</td>
-      <td style="padding:8px 10px; text-align:center;">${d.frequency != null ? `${d.frequency} удаа` : "—"}</td>
-      <td style="padding:8px 10px; text-align:center;">${d.perDose ?? "—"}</td>
-      <td style="padding:8px 10px; text-align:center;">${d.duration != null ? `${d.duration} өдөр` : "—"}</td>
-      <td style="padding:8px 10px; color:#64748b;">${d.notes || "—"}</td>
+    <tr style="background:${i % 2 === 0 ? "#fff" : "#f8fafc"};border-bottom:1px solid #e2e8f0">
+      <td style="padding:8px 10px;text-align:center;color:#64748b">${i + 1}</td>
+      <td style="padding:8px 10px;font-weight:500">${d.nameFormDosage || "—"}</td>
+      <td style="padding:8px 10px;text-align:center">${d.totalQuantity ?? "—"}</td>
+      <td style="padding:8px 10px">${d.route || "—"}</td>
+      <td style="padding:8px 10px;text-align:center">${d.frequency != null ? `${d.frequency} удаа` : "—"}</td>
+      <td style="padding:8px 10px;text-align:center">${d.perDose ?? "—"}</td>
+      <td style="padding:8px 10px;text-align:center">${d.duration != null ? `${d.duration} өдөр` : "—"}</td>
+      <td style="padding:8px 10px;color:#64748b">${d.notes || "—"}</td>
     </tr>
   `).join("");
 
-  win.document.write(`<!DOCTYPE html>
-<html lang="mn">
-<head>
-  <meta charset="UTF-8" />
-  <title>Эмчилгээний жор</title>
-  <style>
-    @page { margin: 1.5cm; size: A4 landscape; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; font-size: 13px; color: #1e293b; background: #fff; }
-    table { width: 100%; border-collapse: collapse; }
-    th { background: #1e293b; color: #fff; padding: 9px 10px; text-align: left; font-size: 12px; white-space: nowrap; }
-    th:first-child { text-align: center; }
-    .header { text-align: center; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 18px; }
-    .meta { display: flex; justify-content: space-between; margin-bottom: 18px; font-size: 12px; }
-    .meta-block span { color: #64748b; }
-    .meta-block strong { display: block; margin-top: 2px; font-size: 13px; }
-    .footer { margin-top: 28px; display: flex; justify-content: space-between; border-top: 1px solid #ddd; padding-top: 12px; font-size: 11px; color: #64748b; }
-    .stamp { border: 2px solid #1e293b; padding: 4px 18px; border-radius: 4px; font-weight: bold; font-size: 13px; letter-spacing: 1px; color: #1e293b; }
-  </style>
-</head>
-<body>
-  <div class="header">
-    <div style="font-size:22px; font-weight:bold; letter-spacing:2px;">MEDLIVER</div>
-    <div style="font-size:12px; color:#64748b; margin-top:4px;">ЭМЧИЛГЭЭНИЙ ЖОР / PRESCRIPTION</div>
-  </div>
-
-  <div class="meta">
-    <div class="meta-block">
-      <span>Бүртгэсэн эмч / мэргэжилтэн</span>
-      <strong>${record.recordedByName}</strong>
+  openPrintWindow("Эмчилгээний жор", "ЭМЧИЛГЭЭНИЙ ЖОР / PRESCRIPTION", `
+    <div class="p-meta">
+      <div class="p-meta-block"><span>Бүртгэсэн эмч</span><strong>${record.recordedByName}</strong></div>
+      <div class="p-meta-block" style="text-align:right"><span>Огноо</span><strong>${new Date(record.createdAt).toLocaleString("mn-MN")}</strong></div>
     </div>
-    <div class="meta-block" style="text-align:right;">
-      <span>Бүртгэсэн огноо</span>
-      <strong>${new Date(record.createdAt).toLocaleString("mn-MN")}</strong>
-    </div>
-  </div>
-
-  <table>
-    <thead>
-      <tr>
-        <th style="width:36px;">#</th>
+    <table>
+      <thead><tr>
+        <th style="width:36px;text-align:center">#</th>
         <th>Эмийн нэр, хэлбэр, тун</th>
-        <th style="width:80px; text-align:center;">Нийт тоо</th>
-        <th style="width:140px;">Хэрэглэх арга</th>
-        <th style="width:90px; text-align:center;">Давтамж</th>
-        <th style="width:70px; text-align:center;">1 удаа</th>
-        <th style="width:90px; text-align:center;">Хугацаа</th>
+        <th style="width:80px;text-align:center">Нийт тоо</th>
+        <th style="width:140px">Хэрэглэх арга</th>
+        <th style="width:90px;text-align:center">Давтамж</th>
+        <th style="width:70px;text-align:center">1 удаа</th>
+        <th style="width:90px;text-align:center">Хугацаа</th>
         <th>Тэмдэглэл</th>
-      </tr>
-    </thead>
-    <tbody>${rows}</tbody>
-  </table>
-
-  <div class="footer">
-    <span>Хэвлэсэн: ${new Date().toLocaleString("mn-MN")}</span>
-    <span class="stamp">MEDLIVER</span>
-  </div>
-
-  <script>window.onload = () => { window.print(); window.onafterprint = () => window.close(); };<\/script>
-</body>
-</html>`);
-  win.document.close();
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  `, { ...config, pageOrientation: "landscape" });
 }
 
 /* ─── Treatment record card ─────────────────────────────────────── */
@@ -434,10 +390,12 @@ function TreatmentCard({
   record,
   patientId,
   canDelete,
+  printConfig,
 }: {
   record: TreatmentRecord;
   patientId: string;
   canDelete: boolean;
+  printConfig?: import("@his/shared").PrintConfig;
 }) {
   const [open, setOpen] = useState(false);
   const qc = useQueryClient();
@@ -534,7 +492,7 @@ function TreatmentCard({
               variant="outline"
               size="sm"
               className="h-8 gap-1.5"
-              onClick={() => printTreatment(record)}
+              onClick={() => printTreatment(record, printConfig)}
             >
               <Printer className="h-3.5 w-3.5" />
               Хэвлэх
@@ -572,6 +530,13 @@ export function PatientTreatment({
   const user = useAuthStore((s) => s.user);
   const [open, setOpen]           = useState(defaultOpen);
   const [activeTab, setActiveTab] = useState<"list" | "add">("list");
+
+  const { data: printConfig } = useQuery({
+    queryKey: ["print-config"],
+    queryFn: getPrintConfig,
+    staleTime: 5 * 60_000,
+    enabled: open,
+  });
 
   const canAdd = user && ["admin", "doctor", "nurse"].includes(user.role);
 
@@ -663,6 +628,7 @@ export function PatientTreatment({
                       record={r}
                       patientId={patientId}
                       canDelete={canDeleteRecord(r.recordedById)}
+                      printConfig={printConfig}
                     />
                   ))}
                 </div>
