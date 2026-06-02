@@ -7,6 +7,8 @@ export interface PrintConfig {
   orgEmail?: string;
   logoUrl?: string;         // URL or base64 data URI
   showLogo: boolean;
+  stampUrl?: string;        // Тамга / seal image URL or base64
+  showStamp: boolean;
   headerBgColor: string;    // CSS hex e.g. "#1e293b"
   headerTextColor: string;  // CSS hex e.g. "#ffffff"
   fontSize: number;         // 11–16
@@ -24,6 +26,8 @@ export interface UpdatePrintConfigInput {
   orgEmail?: string;
   logoUrl?: string;
   showLogo?: boolean;
+  stampUrl?: string;
+  showStamp?: boolean;
   headerBgColor?: string;
   headerTextColor?: string;
   fontSize?: number;

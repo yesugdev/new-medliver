@@ -23,6 +23,8 @@ export class PrintConfigService {
       orgEmail:         doc.orgEmail,
       logoUrl:          doc.logoUrl,
       showLogo:         doc.showLogo,
+      stampUrl:         doc.stampUrl,
+      showStamp:        doc.showStamp,
       headerBgColor:    doc.headerBgColor,
       headerTextColor:  doc.headerTextColor,
       fontSize:         doc.fontSize,

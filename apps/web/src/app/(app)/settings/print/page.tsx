@@ -75,6 +75,8 @@ export default function PrintSettingsPage() {
   const [orgEmail,         setOrgEmail]         = useState("");
   const [logoUrl,          setLogoUrl]          = useState("");
   const [showLogo,         setShowLogo]         = useState(false);
+  const [stampUrl,         setStampUrl]         = useState("");
+  const [showStamp,        setShowStamp]        = useState(false);
   const [headerBgColor,    setHeaderBgColor]    = useState("#1e293b");
   const [headerTextColor,  setHeaderTextColor]  = useState("#ffffff");
   const [fontSize,         setFontSize]         = useState(13);
@@ -92,6 +94,8 @@ export default function PrintSettingsPage() {
     setOrgEmail(saved.orgEmail ?? "");
     setLogoUrl(saved.logoUrl ?? "");
     setShowLogo(saved.showLogo ?? false);
+    setStampUrl(saved.stampUrl ?? "");
+    setShowStamp(saved.showStamp ?? false);
     setHeaderBgColor(saved.headerBgColor ?? "#1e293b");
     setHeaderTextColor(saved.headerTextColor ?? "#ffffff");
     setFontSize(saved.fontSize ?? 13);
@@ -110,10 +114,21 @@ export default function PrintSettingsPage() {
       return;
     }
     const reader = new FileReader();
-    reader.onload = () => {
-      setLogoUrl(reader.result as string);
-      setShowLogo(true);
-    };
+    reader.onload = () => { setLogoUrl(reader.result as string); setShowLogo(true); };
+    reader.readAsDataURL(file);
+  };
+
+  /* Stamp file upload → base64 */
+  const stampRef = useRef<HTMLInputElement>(null);
+  const handleStampFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 512 * 1024) {
+      toast({ title: "Тамга 512KB-аас бага байх ёстой", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => { setStampUrl(reader.result as string); setShowStamp(true); };
     reader.readAsDataURL(file);
   };
 
@@ -126,6 +141,8 @@ export default function PrintSettingsPage() {
         orgEmail: orgEmail || undefined,
         logoUrl: logoUrl || undefined,
         showLogo,
+        stampUrl: stampUrl || undefined,
+        showStamp,
         headerBgColor, headerTextColor,
         fontSize, pageSize, pageOrientation,
         footerNote: footerNote || undefined,
@@ -143,6 +160,7 @@ export default function PrintSettingsPage() {
     orgAddress: orgAddress || undefined,
     orgPhone: orgPhone || undefined,
     logoUrl: logoUrl || undefined, showLogo,
+    stampUrl: stampUrl || undefined, showStamp,
     headerBgColor, headerTextColor,
     fontSize, pageSize, pageOrientation,
     footerNote: footerNote || undefined,
@@ -290,6 +308,55 @@ export default function PrintSettingsPage() {
                   <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${showLogo ? "translate-x-4" : "translate-x-0.5"}`} />
                 </button>
                 <Label className="text-xs cursor-pointer" onClick={() => setShowLogo((v) => !v)}>Logo харуулах</Label>
+              </div>
+            </div>
+
+            {/* Stamp */}
+            <div className="space-y-2">
+              <Label>Тамга / Баталгааны тэмдэг</Label>
+              <div className="flex items-center gap-3">
+                {stampUrl ? (
+                  <div className="relative h-16 w-16 rounded-full border border-border overflow-hidden bg-muted/20 flex items-center justify-center">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={stampUrl} alt="stamp" className="h-14 w-14 object-contain opacity-80" />
+                    <button
+                      type="button"
+                      onClick={() => { setStampUrl(""); setShowStamp(false); }}
+                      className="absolute top-0 right-0 h-5 w-5 bg-white/80 rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="h-16 w-16 rounded-full border-2 border-dashed border-border flex items-center justify-center text-muted-foreground text-xs text-center">
+                    Тамга
+                  </div>
+                )}
+                <div className="space-y-1.5 flex-1">
+                  <Button variant="outline" size="sm" onClick={() => stampRef.current?.click()} className="w-full">
+                    <Upload className="h-3.5 w-3.5" />
+                    Файл оруулах
+                  </Button>
+                  <input ref={stampRef} type="file" accept="image/*" className="sr-only" onChange={handleStampFile} />
+                  <Input
+                    value={stampUrl.startsWith("data:") ? "" : stampUrl}
+                    onChange={(e) => setStampUrl(e.target.value)}
+                    placeholder="Эсвэл URL..."
+                    className="h-8 text-xs"
+                  />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowStamp((v) => !v)}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${showStamp ? "bg-primary" : "bg-muted-foreground/30"}`}
+                >
+                  <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${showStamp ? "translate-x-4" : "translate-x-0.5"}`} />
+                </button>
+                <Label className="text-xs cursor-pointer" onClick={() => setShowStamp((v) => !v)}>
+                  Тамга харуулах (баруун доод булан)
+                </Label>
               </div>
             </div>
 

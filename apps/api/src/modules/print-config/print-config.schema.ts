@@ -26,6 +26,12 @@ export class PrintConfigEntity {
   @Prop({ type: Boolean, default: false })
   showLogo!: boolean;
 
+  @Prop({ type: String })
+  stampUrl?: string;
+
+  @Prop({ type: Boolean, default: false })
+  showStamp!: boolean;
+
   @Prop({ type: String, default: "#1e293b" })
   headerBgColor!: string;
 

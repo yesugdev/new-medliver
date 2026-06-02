@@ -15,6 +15,8 @@ class UpdatePrintConfigDto {
   @IsOptional() @IsString() @MaxLength(100)  orgEmail?: string;
   @IsOptional() @IsString()                   logoUrl?: string;
   @IsOptional() @IsBoolean()                  showLogo?: boolean;
+  @IsOptional() @IsString()                   stampUrl?: string;
+  @IsOptional() @IsBoolean()                  showStamp?: boolean;
   @IsOptional() @IsString() @MaxLength(20)   headerBgColor?: string;
   @IsOptional() @IsString() @MaxLength(20)   headerTextColor?: string;
   @IsOptional() @Type(() => Number) @IsInt() @Min(10) @Max(18) fontSize?: number;
