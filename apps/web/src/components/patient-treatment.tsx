@@ -266,7 +266,7 @@ function AddTreatmentForm({
   const qc = useQueryClient();
   const { toast } = useToast();
   const [drugs, setDrugs] = useState<TreatmentDrug[]>([emptyDrug()]);
-  const [modes, setModes] = useState<DrugMode[]>(["custom"]);
+  const [modes, setModes] = useState<DrugMode[]>(["inventory"]);
 
   const { data: inventoryDrugs = [] } = useQuery({
     queryKey: ["drugs-active"],
@@ -284,7 +284,7 @@ function AddTreatmentForm({
   };
   const addDrug     = () => {
     setDrugs((prev) => [...prev, emptyDrug()]);
-    setModes((prev) => [...prev, "custom"]);
+    setModes((prev) => [...prev, "inventory"]);
   };
 
   const save = useMutation({
