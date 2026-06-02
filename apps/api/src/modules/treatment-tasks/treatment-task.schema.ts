@@ -14,6 +14,9 @@ export class TreatmentTaskEntity {
   @Prop({ type: String, required: true })
   patientCode!: string;
 
+  @Prop({ type: String, index: true })
+  registerNumber?: string;
+
   @Prop({ type: String, required: true })
   drugName!: string;
 

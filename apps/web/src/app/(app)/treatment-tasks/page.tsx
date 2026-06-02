@@ -193,10 +193,11 @@ function TaskCard({ task, canDelete }: { task: TreatmentTask; canDelete: boolean
 
 /* ─── Patient group ─────────────────────────────────────────────── */
 function PatientGroup({
-  patientName, patientCode, patientId, tasks, canDelete,
+  patientName, patientCode, registerNumber, patientId, tasks, canDelete,
 }: {
   patientName: string;
   patientCode: string;
+  registerNumber?: string;
   patientId: string;
   tasks: TreatmentTask[];
   canDelete: boolean;
@@ -228,7 +229,10 @@ function PatientGroup({
           >
             {patientName}
           </Link>
-          <div className="text-xs text-muted-foreground font-mono">{patientCode}</div>
+          <div className="text-xs text-muted-foreground font-mono">
+            {patientCode}
+            {registerNumber && <span className="ml-2 opacity-70">· {registerNumber}</span>}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {pendingCount > 0 && (
@@ -279,21 +283,21 @@ export default function TreatmentTasksPage() {
   /* Filter by search */
   const filtered = useMemo(() => {
     if (!search.trim()) return tasks;
-    const q = search.toLowerCase();
-    return tasks.filter(
-      (t) =>
-        t.patientName.toLowerCase().includes(q) ||
-        t.patientCode.toLowerCase().includes(q) ||
-        t.drugName.toLowerCase().includes(q),
+    const q = search.toLowerCase().replace(/\s+/g, "");
+    return tasks.filter((t) =>
+      t.patientName.toLowerCase().replace(/\s+/g, "").includes(q) ||
+      t.patientCode.toLowerCase().includes(q) ||
+      t.drugName.toLowerCase().includes(q) ||
+      (t.registerNumber ?? "").toLowerCase().includes(q),
     );
   }, [tasks, search]);
 
   /* Group by patient */
   const grouped = useMemo(() => {
-    const map = new Map<string, { name: string; code: string; tasks: TreatmentTask[] }>();
+    const map = new Map<string, { name: string; code: string; registerNumber?: string; tasks: TreatmentTask[] }>();
     for (const t of filtered) {
       if (!map.has(t.patientId)) {
-        map.set(t.patientId, { name: t.patientName, code: t.patientCode, tasks: [] });
+        map.set(t.patientId, { name: t.patientName, code: t.patientCode, registerNumber: t.registerNumber, tasks: [] });
       }
       map.get(t.patientId)!.tasks.push(t);
     }
@@ -370,7 +374,7 @@ export default function TreatmentTasksPage() {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Өвчтөн, эм хайх..."
+            placeholder="Өвчтөний нэр · эм · регистр..."
             className="pl-8 h-9 text-sm"
           />
         </div>
@@ -420,6 +424,7 @@ export default function TreatmentTasksPage() {
               patientId={patientId}
               patientName={g.name}
               patientCode={g.code}
+              registerNumber={g.registerNumber}
               tasks={g.tasks}
               canDelete={canDelete}
             />

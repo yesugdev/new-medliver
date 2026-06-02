@@ -19,9 +19,10 @@ export class TreatmentTaskService {
   private toShared(doc: TreatmentTaskDocument): TreatmentTask {
     return {
       id:            doc._id.toString(),
-      patientId:     doc.patientId.toString(),
-      patientName:   doc.patientName,
-      patientCode:   doc.patientCode,
+      patientId:      doc.patientId.toString(),
+      patientName:    doc.patientName,
+      patientCode:    doc.patientCode,
+      registerNumber: doc.registerNumber,
       drugName:      doc.drugName,
       route:         doc.route,
       frequency:     doc.frequency,
@@ -76,6 +77,7 @@ export class TreatmentTaskService {
     patientId: string;
     patientName: string;
     patientCode: string;
+    registerNumber?: string;
     drugs: Array<{
       drugName: string;
       route?: string;
@@ -87,7 +89,7 @@ export class TreatmentTaskService {
     sourceRecordId: string;
     actor: AuthUser;
   }): Promise<void> {
-    const { patientId, patientName, patientCode, drugs, sourceRecordId, actor } = params;
+    const { patientId, patientName, patientCode, registerNumber, drugs, sourceRecordId, actor } = params;
     const today = new Date();
 
     const docs = drugs.flatMap((d) => {
@@ -99,6 +101,7 @@ export class TreatmentTaskService {
           patientId:     new Types.ObjectId(patientId),
           patientName,
           patientCode,
+          registerNumber,
           drugName:      d.drugName,
           route:         d.route,
           frequency:     d.frequency,

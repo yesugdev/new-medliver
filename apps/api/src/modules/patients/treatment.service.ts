@@ -63,8 +63,9 @@ export class TreatmentService {
     if (patient) {
       await this.taskService.createFromRecord({
         patientId,
-        patientName:  `${patient.lastName} ${patient.firstName}`,
-        patientCode:  patient.patientCode,
+        patientName:    `${patient.lastName} ${patient.firstName}`,
+        patientCode:    patient.patientCode,
+        registerNumber: patient.registerNumber,
         drugs: dto.drugs
           .filter((d) => d.nameFormDosage.trim())
           .map((d) => ({

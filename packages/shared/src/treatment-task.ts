@@ -5,6 +5,7 @@ export interface TreatmentTask {
   patientId: string;
   patientName: string;
   patientCode: string;
+  registerNumber?: string;
 
   drugName: string;      // nameFormDosage
   route?: string;
