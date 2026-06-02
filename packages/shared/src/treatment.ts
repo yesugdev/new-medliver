@@ -21,6 +21,8 @@ export const DRUG_ROUTES = [
 export type DrugRoute = (typeof DRUG_ROUTES)[number];
 
 export interface TreatmentDrug {
+  /** Эм бүртгэлээс сонгосон эмийн ID (байхгүй бол custom оруулалт) */
+  drugId?: string;
   /** Эмийн нэр, хэлбэр, тун */
   nameFormDosage: string;
   /** Нийт тоо хэмжээ */

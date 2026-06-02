@@ -5,6 +5,7 @@ import {
 } from "class-validator";
 
 export class TreatmentDrugDto {
+  @IsOptional() @IsString()      drugId?: string;
   @IsString() @MaxLength(500)    nameFormDosage!: string;
   @IsOptional() @IsNumber() @Min(0) totalQuantity?: number;
   @IsOptional() @IsString()      route?: string;

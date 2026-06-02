@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown, ChevronUp, Plus, Trash2,
-  Loader2, Pill, CalendarDays, User, Printer,
+  Loader2, Pill, CalendarDays, User, Printer, List, PenLine,
 } from "lucide-react";
 import { DRUG_ROUTES } from "@his/shared";
 import type { TreatmentDrug, TreatmentRecord } from "@his/shared";
@@ -14,8 +14,11 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
 import { useAuthStore } from "@/stores/auth-store";
 import { createTreatment, deleteTreatment, listTreatments } from "@/lib/treatment-api";
+import { listDrugs } from "@/lib/drugs-api";
 import { extractApiError } from "@/lib/api";
 import { formatDateTimeMn } from "@/lib/utils";
+
+type DrugMode = "inventory" | "custom";
 
 /* ─── Empty drug row ─────────────────────────────────────────────── */
 const emptyDrug = (): TreatmentDrug => ({
@@ -32,47 +35,132 @@ const emptyDrug = (): TreatmentDrug => ({
 function DrugRow({
   drug,
   index,
+  mode,
+  onModeChange,
   onChange,
   onDelete,
   canDelete,
+  inventoryDrugs,
 }: {
   drug: TreatmentDrug;
   index: number;
+  mode: DrugMode;
+  onModeChange: (m: DrugMode) => void;
   onChange: (d: TreatmentDrug) => void;
   onDelete: () => void;
   canDelete: boolean;
+  inventoryDrugs: import("@his/shared").Drug[];
 }) {
   const up = (patch: Partial<TreatmentDrug>) => onChange({ ...drug, ...patch });
+
+  const handleInventorySelect = (drugId: string) => {
+    const selected = inventoryDrugs.find((d) => d.id === drugId);
+    if (selected) {
+      up({
+        drugId,
+        nameFormDosage: `${selected.name} ${selected.form} ${selected.dosage}`.trim(),
+      });
+    } else {
+      up({ drugId: undefined, nameFormDosage: "" });
+    }
+  };
+
+  const selectedDrug = mode === "inventory" && drug.drugId
+    ? inventoryDrugs.find((d) => d.id === drug.drugId)
+    : null;
 
   return (
     <div className="rounded-lg border border-border bg-white overflow-hidden">
       {/* Row header */}
       <div className="flex items-center justify-between px-4 py-2 bg-muted/20 border-b border-border">
-        <span className="text-xs font-semibold text-muted-foreground">
-          Эм #{index + 1}
-        </span>
-        {canDelete && (
-          <button
-            type="button"
-            onClick={onDelete}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Устгах
-          </button>
-        )}
+        <span className="text-xs font-semibold text-muted-foreground">Эм #{index + 1}</span>
+        <div className="flex items-center gap-2">
+          {/* Mode toggle */}
+          <div className="flex items-center rounded-md border border-border overflow-hidden text-xs">
+            <button
+              type="button"
+              onClick={() => {
+                onModeChange("inventory");
+                onChange({ ...drug, drugId: undefined, nameFormDosage: "" });
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1 transition-colors ${
+                mode === "inventory"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              <List className="h-3 w-3" />
+              Жагсаалтаас
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onModeChange("custom");
+                onChange({ ...drug, drugId: undefined });
+              }}
+              className={`flex items-center gap-1 px-2.5 py-1 transition-colors ${
+                mode === "custom"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-muted"
+              }`}
+            >
+              <PenLine className="h-3 w-3" />
+              Гараар
+            </button>
+          </div>
+          {canDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Устгах
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Row 1: name/form/dosage | total qty | route */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_140px_200px] gap-3 px-4 pt-3">
         <div className="space-y-1">
           <Label className="text-xs font-medium">Эмийн нэр, хэлбэр, тун</Label>
-          <Input
-            value={drug.nameFormDosage}
-            onChange={(e) => up({ nameFormDosage: e.target.value })}
-            placeholder="жш: Амоксициллин хавтас 500мг"
-            className="h-9 text-sm"
-          />
+          {mode === "inventory" ? (
+            <div className="space-y-1">
+              <select
+                value={drug.drugId ?? ""}
+                onChange={(e) => handleInventorySelect(e.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">— Эм сонгох —</option>
+                {inventoryDrugs.map((d) => (
+                  <option key={d.id} value={d.id} disabled={d.stock <= 0}>
+                    {d.name} {d.form} {d.dosage}
+                    {d.stock <= 0 ? " (нөөцгүй)" : ` — ${d.stock} ${d.unit}`}
+                  </option>
+                ))}
+              </select>
+              {selectedDrug && (
+                <div className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${
+                  selectedDrug.stock <= 0
+                    ? "bg-rose-50 text-rose-700"
+                    : selectedDrug.stock <= selectedDrug.minStock
+                    ? "bg-amber-50 text-amber-700"
+                    : "bg-emerald-50 text-emerald-700"
+                }`}>
+                  <Pill className="h-3 w-3" />
+                  Нөөц: {selectedDrug.stock} {selectedDrug.unit}
+                </div>
+              )}
+            </div>
+          ) : (
+            <Input
+              value={drug.nameFormDosage}
+              onChange={(e) => up({ nameFormDosage: e.target.value })}
+              placeholder="жш: Амоксициллин хавтас 500мг"
+              className="h-9 text-sm"
+            />
+          )}
         </div>
         <div className="space-y-1">
           <Label className="text-xs font-medium">Нийт тоо хэмжээ</Label>
@@ -178,12 +266,26 @@ function AddTreatmentForm({
   const qc = useQueryClient();
   const { toast } = useToast();
   const [drugs, setDrugs] = useState<TreatmentDrug[]>([emptyDrug()]);
+  const [modes, setModes] = useState<DrugMode[]>(["custom"]);
+
+  const { data: inventoryDrugs = [] } = useQuery({
+    queryKey: ["drugs-active"],
+    queryFn:  () => listDrugs(true),
+    staleTime: 60_000,
+  });
 
   const updateDrug  = (i: number, d: TreatmentDrug) =>
     setDrugs((prev) => prev.map((x, j) => (j === i ? d : x)));
-  const deleteDrug  = (i: number) =>
+  const updateMode  = (i: number, m: DrugMode) =>
+    setModes((prev) => prev.map((x, j) => (j === i ? m : x)));
+  const deleteDrug  = (i: number) => {
     setDrugs((prev) => prev.filter((_, j) => j !== i));
-  const addDrug     = () => setDrugs((prev) => [...prev, emptyDrug()]);
+    setModes((prev) => prev.filter((_, j) => j !== i));
+  };
+  const addDrug     = () => {
+    setDrugs((prev) => [...prev, emptyDrug()]);
+    setModes((prev) => [...prev, "custom"]);
+  };
 
   const save = useMutation({
     mutationFn: () => {
@@ -222,9 +324,12 @@ function AddTreatmentForm({
             key={i}
             drug={drug}
             index={i}
+            mode={modes[i] ?? "custom"}
+            onModeChange={(m) => updateMode(i, m)}
             onChange={(d) => updateDrug(i, d)}
             onDelete={() => deleteDrug(i)}
             canDelete={drugs.length > 1}
+            inventoryDrugs={inventoryDrugs}
           />
         ))}
       </div>

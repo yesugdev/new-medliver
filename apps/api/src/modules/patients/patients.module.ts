@@ -7,6 +7,7 @@ import { PatientsService } from "./patients.service";
 import { MedicalHistoryService } from "./medical-history.service";
 import { TreatmentService } from "./treatment.service";
 import { PatientsController } from "./patients.controller";
+import { DrugsModule } from "../drugs/drugs.module";
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { PatientsController } from "./patients.controller";
       { name: MedicalHistory.name, schema: MedicalHistorySchema },
       { name: Treatment.name,      schema: TreatmentSchema      },
     ]),
+    DrugsModule,
   ],
   controllers: [PatientsController],
   providers: [PatientsService, MedicalHistoryService, TreatmentService],

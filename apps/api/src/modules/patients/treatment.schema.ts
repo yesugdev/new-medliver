@@ -6,6 +6,8 @@ export type TreatmentDocument = HydratedDocument<Treatment>;
 /** Single drug line in a treatment record */
 @Schema({ _id: false })
 export class TreatmentDrug {
+  /** Эм бүртгэлийн ID (байхгүй бол custom оруулалт) */
+  @Prop({ type: Types.ObjectId, ref: "DrugEntity" }) drugId?: Types.ObjectId;
   /** Эмийн нэр, хэлбэр, тун */
   @Prop({ type: String, required: true }) nameFormDosage!: string;
   /** Нийт тоо хэмжээ */

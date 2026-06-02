@@ -4,12 +4,14 @@ import { Model, Types } from "mongoose";
 import type { AuthUser, TreatmentRecord } from "@his/shared";
 import { Treatment, TreatmentDocument } from "./treatment.schema";
 import { CreateTreatmentDto } from "./dto/create-treatment.dto";
+import { DrugsService } from "../drugs/drugs.service";
 
 @Injectable()
 export class TreatmentService {
   constructor(
     @InjectModel(Treatment.name)
     private readonly model: Model<TreatmentDocument>,
+    private readonly drugsService: DrugsService,
   ) {}
 
   private toShared(doc: TreatmentDocument): TreatmentRecord {
@@ -17,6 +19,7 @@ export class TreatmentService {
       id: doc._id.toString(),
       patientId: doc.patientId.toString(),
       drugs: doc.drugs.map((d) => ({
+        drugId:         (d as any).drugId?.toString(),
         nameFormDosage: d.nameFormDosage,
         totalQuantity:  d.totalQuantity,
         route:          d.route,
@@ -37,11 +40,21 @@ export class TreatmentService {
     actor: AuthUser,
   ): Promise<TreatmentRecord> {
     const doc = await this.model.create({
-      patientId:     new Types.ObjectId(patientId),
-      drugs:         dto.drugs,
-      recordedById:  new Types.ObjectId(actor.id),
+      patientId:      new Types.ObjectId(patientId),
+      drugs:          dto.drugs,
+      recordedById:   new Types.ObjectId(actor.id),
       recordedByName: actor.fullName ?? actor.email,
     });
+
+    // Deduct stock for inventory drugs
+    for (const drug of dto.drugs) {
+      if (drug.drugId && drug.totalQuantity && drug.totalQuantity > 0) {
+        await this.drugsService.deductStock(drug.drugId, drug.totalQuantity).catch(() => {
+          // Don't fail the treatment record if stock deduction fails
+        });
+      }
+    }
+
     return this.toShared(doc);
   }
 

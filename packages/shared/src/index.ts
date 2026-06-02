@@ -9,3 +9,4 @@ export * from "./audit";
 export * from "./lab";
 export * from "./medical-history";
 export * from "./treatment";
+export * from "./drug";

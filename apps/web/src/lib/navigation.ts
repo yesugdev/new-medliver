@@ -11,6 +11,7 @@ import {
   HeartPulse,
   FlaskConical,
   FileSliders,
+  Pill,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@his/shared";
@@ -71,6 +72,12 @@ export const NAV_ITEMS: NavItem[] = [
     label: "Төлбөр",
     icon: Receipt,
     roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION],
+  },
+  {
+    href: "/drugs",
+    label: "Эм бүртгэл",
+    icon: Pill,
+    roles: [ROLES.ADMIN],
   },
   {
     href: "/users",
