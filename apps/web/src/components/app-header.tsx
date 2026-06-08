@@ -10,6 +10,17 @@ import { useAuthStore } from "@/stores/auth-store";
 import { listPatients } from "@/lib/patients-api";
 import type { Patient } from "@his/shared";
 
+/* ─── Mongolian date formatter ──────────────────────────────────── */
+const MN_WEEKDAYS = ["Ням", "Даваа", "Мягмар", "Лхагва", "Пүрэв", "Баасан", "Бямба"];
+const MN_MONTHS   = [
+  "1-р сар", "2-р сар", "3-р сар", "4-р сар", "5-р сар", "6-р сар",
+  "7-р сар", "8-р сар", "9-р сар", "10-р сар", "11-р сар", "12-р сар",
+];
+
+function formatMnDate(d: Date): string {
+  return `${d.getFullYear()} оны ${MN_MONTHS[d.getMonth()]} ${d.getDate()}, ${MN_WEEKDAYS[d.getDay()]}`;
+}
+
 /* ─── Patient quick search ───────────────────────────────────────── */
 function PatientQuickSearch() {
   const router    = useRouter();
@@ -141,9 +152,7 @@ export function AppHeader({ user }: { user: AuthUser }) {
     <header className="h-16 bg-white border-b border-border flex items-center justify-between px-6 sticky top-0 z-20">
       {/* Left: date */}
       <div className="text-sm text-muted-foreground hidden md:block">
-        {new Date().toLocaleDateString("mn-MN", {
-          year: "numeric", month: "long", day: "numeric", weekday: "long",
-        })}
+        {formatMnDate(new Date())}
       </div>
 
       {/* Center: search */}
