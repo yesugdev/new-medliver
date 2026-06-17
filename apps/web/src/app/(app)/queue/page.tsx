@@ -41,14 +41,18 @@ export default function QueuePage() {
       toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" }),
   });
 
-  /* Start visit: create visit (idempotent) then navigate to visit card */
+  /* Start visit: create visit (idempotent) then navigate to visit card or treatment-tasks */
   const startVisit = useMutation({
     mutationFn: ({ appointmentId, patientId }: { appointmentId: string; patientId: string }) =>
       createVisit({ patientId, appointmentId }),
     onSuccess: (visit) => {
       qc.invalidateQueries({ queryKey: ["queue"] });
       qc.invalidateQueries({ queryKey: ["appointments"] });
-      router.push(`/emr/visit?visitId=${visit.id}&patientId=${visit.patientId}`);
+      if (visit.visitType === "treatment") {
+        router.push(`/treatment-tasks?patientId=${visit.patientId}`);
+      } else {
+        router.push(`/emr/visit?visitId=${visit.id}&patientId=${visit.patientId}`);
+      }
     },
     onError: (err) =>
       toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" }),

@@ -50,7 +50,7 @@ export class Visit {
   })
   status!: VisitStatusEnum;
 
-  @Prop({ type: String, enum: ["consultation", "follow_up", "walk_in", "emergency"] })
+  @Prop({ type: String, enum: ["consultation", "follow_up", "walk_in", "emergency", "treatment"] })
   visitType?: string;
 
   @Prop({ type: String, trim: true }) chiefComplaint?: string;

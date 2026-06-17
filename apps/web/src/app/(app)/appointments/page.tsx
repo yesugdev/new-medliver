@@ -74,7 +74,11 @@ export default function AppointmentsPage() {
     onSuccess: (visit) => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
       qc.invalidateQueries({ queryKey: ["queue"] });
-      router.push(`/emr/visit?visitId=${visit.id}&patientId=${visit.patientId}`);
+      if (visit.visitType === "treatment") {
+        router.push(`/treatment-tasks?patientId=${visit.patientId}`);
+      } else {
+        router.push(`/emr/visit?visitId=${visit.id}&patientId=${visit.patientId}`);
+      }
     },
     onError: (err) =>
       toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" }),
