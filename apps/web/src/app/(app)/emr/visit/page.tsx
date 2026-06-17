@@ -599,6 +599,9 @@ function VisitForm() {
       qc.invalidateQueries({ queryKey: ["visits-by-patient", patientId] });
       qc.invalidateQueries({ queryKey: ["visit", visitId] });
       qc.invalidateQueries({ queryKey: ["queue"] });
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      qc.invalidateQueries({ queryKey: ["appt-calendar"] });
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
       if (status === "completed") {
         router.push(`/patients/${patientId}`);
       }
