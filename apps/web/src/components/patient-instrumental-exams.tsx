@@ -283,6 +283,7 @@ function FilesSection({ patientId, examType }: { patientId: string; examType: In
   const [notes, setNotes] = useState("");
   const [date, setDate] = useState(today());
   const [sizeError, setSizeError] = useState("");
+  const [preview, setPreview] = useState<PreviewFile | null>(null);
 
   const key = ["exam-files", patientId, examType];
   const { data, isLoading } = useQuery({ queryKey: key, queryFn: () => getExamFiles(patientId, examType) });
@@ -359,6 +360,10 @@ function FilesSection({ patientId, examType }: { patientId: string; examType: In
                   <td className="px-3 py-2 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Button variant="ghost" size="icon" className="h-6 w-6 text-primary"
+                        onClick={() => setPreview({ fileName: f.fileName, mimeType: f.mimeType, fileData: f.fileData })} title="Урьдчилан харах">
+                        <Eye className="h-3 w-3" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-6 w-6 text-primary"
                         onClick={() => downloadFile(f.fileName, f.mimeType, f.fileData)} title="Татах">
                         <Download className="h-3 w-3" />
                       </Button>
@@ -431,6 +436,9 @@ function FilesSection({ patientId, examType }: { patientId: string; examType: In
         </div>
         {addMut.isSuccess && <p className="text-xs text-green-600">Файл амжилттай хадгаллаа.</p>}
       </div>
+
+      {/* Preview modal */}
+      {preview && <FilePreviewModal file={preview} onClose={() => setPreview(null)} />}
     </div>
   );
 }
