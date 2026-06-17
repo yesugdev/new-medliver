@@ -12,7 +12,7 @@ export type AppointmentStatusEnum =
   | "cancelled"
   | "no_show";
 
-export type AppointmentTypeEnum = "consultation" | "follow_up" | "walk_in" | "emergency";
+export type AppointmentTypeEnum = "consultation" | "follow_up" | "walk_in" | "emergency" | "treatment";
 
 @Schema({ timestamps: true, collection: "appointments" })
 export class Appointment {
@@ -30,7 +30,7 @@ export class Appointment {
 
   @Prop({
     type: String,
-    enum: ["consultation", "follow_up", "walk_in", "emergency"],
+    enum: ["consultation", "follow_up", "walk_in", "emergency", "treatment"],
     default: "consultation",
   })
   type!: AppointmentTypeEnum;

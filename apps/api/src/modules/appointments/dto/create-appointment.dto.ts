@@ -26,8 +26,8 @@ export class CreateAppointmentDto {
   @Max(240)
   durationMinutes?: number;
 
-  @IsEnum(["consultation", "follow_up", "walk_in", "emergency"])
-  type!: "consultation" | "follow_up" | "walk_in" | "emergency";
+  @IsEnum(["consultation", "follow_up", "walk_in", "emergency", "treatment"])
+  type!: "consultation" | "follow_up" | "walk_in" | "emergency" | "treatment";
 
   @IsOptional()
   @IsString()

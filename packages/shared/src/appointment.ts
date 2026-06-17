@@ -15,13 +15,14 @@ export const APPOINTMENT_STATUS_LABELS_MN: Record<AppointmentStatus, string> = {
   no_show: "Ирээгүй",
 };
 
-export type AppointmentType = "consultation" | "follow_up" | "walk_in" | "emergency";
+export type AppointmentType = "consultation" | "follow_up" | "walk_in" | "emergency" | "treatment";
 
 export const APPOINTMENT_TYPE_LABELS_MN: Record<AppointmentType, string> = {
   consultation: "Анхан үзлэг",
   follow_up: "Давтан үзлэг",
   walk_in: "Чөлөөт цаг",
   emergency: "Яаралтай",
+  treatment: "Эмчилгээ",
 };
 
 export interface Appointment {

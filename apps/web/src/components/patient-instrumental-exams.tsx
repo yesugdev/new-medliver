@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Loader2, Trash2, Upload, AlertCircle, FileText, Download } from "lucide-react";
+import { Loader2, Trash2, Upload, AlertCircle, FileText, Download, Eye, X, ZoomIn, ZoomOut, RotateCw } from "lucide-react";
 import {
   INSTRUMENTAL_EXAM_LABELS,
   INSTRUMENTAL_EXAM_TYPES,
@@ -45,6 +45,110 @@ function downloadFile(fileName: string, mimeType: string, base64: string) {
   link.href = `data:${mimeType};base64,${base64}`;
   link.download = fileName;
   link.click();
+}
+
+function dataUrl(mimeType: string, base64: string) {
+  return `data:${mimeType};base64,${base64}`;
+}
+
+function isImage(mimeType: string) {
+  return mimeType.startsWith("image/");
+}
+
+function isPdf(mimeType: string) {
+  return mimeType === "application/pdf";
+}
+
+/* ─── Preview modal ──────────────────────────────────────────────── */
+
+interface PreviewFile {
+  fileName: string;
+  mimeType: string;
+  fileData: string;
+}
+
+function FilePreviewModal({ file, onClose }: { file: PreviewFile; onClose: () => void }) {
+  const [zoom, setZoom] = useState(1);
+  const [rotate, setRotate] = useState(0);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const src = dataUrl(file.mimeType, file.fileData);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="relative flex flex-col bg-background rounded-xl shadow-2xl max-w-5xl w-full mx-4 max-h-[92vh] overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
+          <div className="flex items-center gap-2 min-w-0">
+            <FileText className="h-4 w-4 text-primary shrink-0" />
+            <span className="text-sm font-medium truncate">{file.fileName}</span>
+          </div>
+          <div className="flex items-center gap-1 ml-2 shrink-0">
+            {isImage(file.mimeType) && (
+              <>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom((z) => Math.max(0.25, z - 0.25))} title="Жижрүүлэх">
+                  <ZoomOut className="h-4 w-4" />
+                </Button>
+                <span className="text-xs text-muted-foreground w-10 text-center">{Math.round(zoom * 100)}%</span>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setZoom((z) => Math.min(4, z + 0.25))} title="Томруулах">
+                  <ZoomIn className="h-4 w-4" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setRotate((r) => (r + 90) % 360)} title="Эргүүлэх">
+                  <RotateCw className="h-4 w-4" />
+                </Button>
+                <div className="w-px h-5 bg-border mx-1" />
+              </>
+            )}
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => downloadFile(file.fileName, file.mimeType, file.fileData)} title="Татах">
+              <Download className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClose} title="Хаах">
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-auto flex items-center justify-center bg-muted/30 min-h-0">
+          {isImage(file.mimeType) && (
+            <div className="p-4">
+              <img
+                src={src}
+                alt={file.fileName}
+                style={{ transform: `scale(${zoom}) rotate(${rotate}deg)`, transformOrigin: "center", transition: "transform 0.2s" }}
+                className="max-w-full block rounded shadow"
+              />
+            </div>
+          )}
+          {isPdf(file.mimeType) && (
+            <iframe
+              src={src}
+              title={file.fileName}
+              className="w-full h-full min-h-[70vh]"
+              style={{ border: "none" }}
+            />
+          )}
+          {!isImage(file.mimeType) && !isPdf(file.mimeType) && (
+            <div className="flex flex-col items-center gap-4 py-16 text-muted-foreground">
+              <FileText className="h-16 w-16 opacity-30" />
+              <p className="text-sm">Энэ файлын урьдчилан харах боломжгүй.</p>
+              <Button onClick={() => downloadFile(file.fileName, file.mimeType, file.fileData)}>
+                <Download className="h-4 w-4" /> Татаж авах
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 /* ─── Exam type tabs ─────────────────────────────────────────────── */
