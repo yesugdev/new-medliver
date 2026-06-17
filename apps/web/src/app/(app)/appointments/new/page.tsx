@@ -25,7 +25,7 @@ import { createAppointment } from "@/lib/appointments-api";
 import { toDateTimeInput } from "@/lib/format";
 import { extractApiError } from "@/lib/api";
 
-const TYPES: AppointmentType[] = ["consultation", "follow_up", "walk_in", "emergency"];
+const TYPES: AppointmentType[] = ["consultation", "follow_up", "walk_in", "emergency", "treatment"];
 
 export default function NewAppointmentPage() {
   const router = useRouter();
