@@ -51,3 +51,14 @@ export class ListUsersDto {
   @IsOptional() @IsEnum(ROLES) role?: (typeof ROLES)[number];
   @IsOptional() @IsString() search?: string;
 }
+
+export class UpdateProfileDto {
+  @IsOptional() @IsString() @MinLength(2) @MaxLength(100) fullName?: string;
+  @IsOptional() @IsString() @MaxLength(20) phone?: string;
+  @IsOptional() @IsString() avatar?: string;
+}
+
+export class ChangePasswordDto {
+  @IsString() @MinLength(6, { message: "Одоогийн нууц үг буруу" }) currentPassword!: string;
+  @IsString() @MinLength(6, { message: "Нууц үг 6-аас доошгүй тэмдэгт" }) newPassword!: string;
+}

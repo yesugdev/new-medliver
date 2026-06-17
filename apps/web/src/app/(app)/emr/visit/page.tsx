@@ -8,7 +8,8 @@ import {
   ArrowLeft, ChevronDown, FileText, Printer,
 } from "lucide-react";
 import type { EmrTabConfig, EmrSectionConfig, EmrFieldConfig } from "@his/shared";
-import { VISIT_STATUS_LABELS_MN } from "@his/shared";
+import { VISIT_STATUS_LABELS_MN, APPOINTMENT_TYPE_LABELS_MN } from "@his/shared";
+import type { AppointmentType } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -412,12 +413,16 @@ function printVisit(params: {
   const { visit, patientName, patientCode, chiefComplaint, symptoms, diagnosis, notes, templateTabs, clinicalNotes, printConfig } = params;
 
   const c = cfg(printConfig);
+  const visitTypeLabel = visit.visitType
+    ? APPOINTMENT_TYPE_LABELS_MN[visit.visitType as AppointmentType]
+    : "";
   const patientBlock = params.patientRaw
     ? buildPatientMeta(params.patientRaw, c)
     : `<div class="p-meta">
         <div class="p-meta-block"><span>Өвчтөн</span><strong>${patientName}</strong></div>
         <div class="p-meta-block"><span>Код</span><strong style="font-family:monospace">${patientCode}</strong></div>
         <div class="p-meta-block"><span>Эмч</span><strong>${visit.doctorName}</strong></div>
+        ${visitTypeLabel ? `<div class="p-meta-block"><span>Үзлэгийн төрөл</span><strong>${visitTypeLabel}</strong></div>` : ""}
         <div class="p-meta-block" style="text-align:right"><span>Огноо</span><strong>${new Date(visit.visitDate).toLocaleString("mn-MN")}</strong></div>
        </div>`;
 
@@ -474,6 +479,7 @@ function printVisit(params: {
     ${patientBlock}
     <div class="p-meta" style="margin-bottom:12px">
       <div class="p-meta-block"><span>Эмч</span><strong>${visit.doctorName}</strong></div>
+      ${visitTypeLabel ? `<div class="p-meta-block"><span>Үзлэгийн төрөл</span><strong style="color:#1d4ed8">${visitTypeLabel}</strong></div>` : ""}
       <div class="p-meta-block" style="text-align:right"><span>Огноо</span><strong>${new Date(visit.visitDate).toLocaleString("mn-MN")}</strong></div>
     </div>
     ${basicFields.length > 0 ? `
@@ -649,7 +655,14 @@ function VisitForm() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Үзлэгийн карт</h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl font-semibold tracking-tight">Үзлэгийн карт</h1>
+              {visit?.visitType && (
+                <span className="text-sm font-semibold px-2.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {APPOINTMENT_TYPE_LABELS_MN[visit.visitType as AppointmentType]}
+                </span>
+              )}
+            </div>
             {patient.data && (
               <p className="text-sm text-muted-foreground mt-1">
                 {patient.data.lastName} {patient.data.firstName} ·{" "}

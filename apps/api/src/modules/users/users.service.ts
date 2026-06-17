@@ -36,6 +36,7 @@ export class UsersService {
       fullName: doc.fullName,
       role: doc.role,
       phone: doc.phone,
+      avatar: (doc as any).avatar,
       isActive: doc.isActive,
       lastLoginAt: doc.lastLoginAt?.toISOString(),
       createdAt: (doc as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
@@ -122,5 +123,35 @@ export class UsersService {
 
   async createShared(dto: CreateUserData): Promise<SystemUser> {
     return this.toShared(await this.create(dto));
+  }
+
+  async updateProfile(
+    id: string,
+    dto: { fullName?: string; phone?: string; avatar?: string },
+  ): Promise<SystemUser> {
+    const user = await this.findById(id);
+    if (dto.fullName) user.fullName = dto.fullName;
+    if (dto.phone !== undefined) (user as any).phone = dto.phone;
+    if (dto.avatar !== undefined) (user as any).avatar = dto.avatar;
+    await user.save();
+    return this.toShared(user);
+  }
+
+  async changeMyPassword(
+    id: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
+    const user = await this.model
+      .findById(id)
+      .select("+passwordHash")
+      .exec();
+    if (!user) throw new NotFoundException("Хэрэглэгч олдсонгүй");
+    const valid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!valid) throw new BadRequestException("Одоогийн нууц үг буруу байна");
+    if (newPassword.length < 6)
+      throw new BadRequestException("Нууц үг 6-аас доошгүй тэмдэгт");
+    user.passwordHash = await bcrypt.hash(newPassword, 10);
+    await user.save();
   }
 }

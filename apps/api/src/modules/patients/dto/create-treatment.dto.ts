@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
 import {
-  IsArray, IsNumber, IsOptional, IsString,
+  IsArray, IsBoolean, IsNumber, IsOptional, IsString,
   MaxLength, Min, ValidateNested,
 } from "class-validator";
 
@@ -20,4 +20,8 @@ export class CreateTreatmentDto {
   @ValidateNested({ each: true })
   @Type(() => TreatmentDrugDto)
   drugs!: TreatmentDrugDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  addToTasks?: boolean;
 }

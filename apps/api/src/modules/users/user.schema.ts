@@ -31,6 +31,9 @@ export class User {
   @Prop({ type: String, trim: true })
   phone?: string;
 
+  @Prop({ type: String })
+  avatar?: string;
+
   @Prop({ type: Date })
   lastLoginAt?: Date;
 }

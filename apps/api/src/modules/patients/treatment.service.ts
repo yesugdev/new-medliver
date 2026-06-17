@@ -58,27 +58,29 @@ export class TreatmentService {
       }
     }
 
-    // Auto-create treatment tasks
-    const patient = await this.patientModel.findById(patientId).lean().exec();
-    if (patient) {
-      await this.taskService.createFromRecord({
-        patientId,
-        patientName:    `${patient.lastName} ${patient.firstName}`,
-        patientCode:    patient.patientCode,
-        registerNumber: patient.registerNumber,
-        drugs: dto.drugs
-          .filter((d) => d.nameFormDosage.trim())
-          .map((d) => ({
-            drugName:  d.nameFormDosage,
-            route:     d.route,
-            frequency: d.frequency,
-            perDose:   d.perDose,
-            duration:  d.duration,
-            notes:     d.notes,
-          })),
-        sourceRecordId: doc._id.toString(),
-        actor,
-      }).catch(() => {});
+    // Auto-create treatment tasks only when "Эмнэлэг дээр хийлгэх" is toggled on
+    if (dto.addToTasks) {
+      const patient = await this.patientModel.findById(patientId).lean().exec();
+      if (patient) {
+        await this.taskService.createFromRecord({
+          patientId,
+          patientName:    `${patient.lastName} ${patient.firstName}`,
+          patientCode:    patient.patientCode,
+          registerNumber: patient.registerNumber,
+          drugs: dto.drugs
+            .filter((d) => d.nameFormDosage.trim())
+            .map((d) => ({
+              drugName:  d.nameFormDosage,
+              route:     d.route,
+              frequency: d.frequency,
+              perDose:   d.perDose,
+              duration:  d.duration,
+              notes:     d.notes,
+            })),
+          sourceRecordId: doc._id.toString(),
+          actor,
+        }).catch(() => {});
+      }
     }
 
     return this.toShared(doc);

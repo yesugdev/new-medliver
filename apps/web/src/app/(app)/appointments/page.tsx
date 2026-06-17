@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   CalendarClock,
@@ -21,6 +22,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { listAppointments, appointmentAction } from "@/lib/appointments-api";
+import { createVisit } from "@/lib/emr-api";
 import { AppointmentCalendar } from "@/components/appointment-calendar";
 import { APPOINTMENT_TONE } from "@/lib/status-tones";
 import { formatTimeMn, toDateInput } from "@/lib/format";
@@ -31,6 +33,7 @@ type ViewMode = "list" | "calendar";
 
 export default function AppointmentsPage() {
   const { toast } = useToast();
+  const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
@@ -62,6 +65,19 @@ export default function AppointmentsPage() {
     onError: (err) => {
       toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" });
     },
+  });
+
+  /* ── Start visit: create visit (idempotent) then navigate ─────── */
+  const startVisit = useMutation({
+    mutationFn: ({ appointmentId, patientId }: { appointmentId: string; patientId: string }) =>
+      createVisit({ patientId, appointmentId }),
+    onSuccess: (visit) => {
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      qc.invalidateQueries({ queryKey: ["queue"] });
+      router.push(`/emr/visit?visitId=${visit.id}&patientId=${visit.patientId}`);
+    },
+    onError: (err) =>
+      toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" }),
   });
 
   const canCreate = user && (user.role === "admin" || user.role === "reception");
@@ -210,23 +226,46 @@ export default function AppointmentsPage() {
                           {a.status === "waiting" && canStartComplete && (
                             <Button
                               size="sm"
-                              onClick={() => action.mutate({ id: a.id, act: "start" })}
-                              disabled={action.isPending}
+                              disabled={startVisit.isPending}
+                              onClick={() =>
+                                startVisit.mutate({ appointmentId: a.id, patientId: a.patientId })
+                              }
                             >
-                              <PlayCircle className="h-3.5 w-3.5" />
+                              {startVisit.isPending ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <PlayCircle className="h-3.5 w-3.5" />
+                              )}
                               Эхлүүлэх
                             </Button>
                           )}
                           {a.status === "in_progress" && canStartComplete && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => action.mutate({ id: a.id, act: "complete" })}
-                              disabled={action.isPending}
-                            >
-                              <CheckCircle2 className="h-3.5 w-3.5" />
-                              Дуусгах
-                            </Button>
+                            <>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                disabled={startVisit.isPending}
+                                onClick={() =>
+                                  startVisit.mutate({ appointmentId: a.id, patientId: a.patientId })
+                                }
+                              >
+                                {startVisit.isPending ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <PlayCircle className="h-3.5 w-3.5" />
+                                )}
+                                EMR
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => action.mutate({ id: a.id, act: "complete" })}
+                                disabled={action.isPending}
+                              >
+                                <CheckCircle2 className="h-3.5 w-3.5" />
+                                Дуусгах
+                              </Button>
+                            </>
                           )}
                           {["scheduled", "waiting"].includes(a.status) && (
                             <Button

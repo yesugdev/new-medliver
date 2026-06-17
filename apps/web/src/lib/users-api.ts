@@ -1,6 +1,8 @@
 import type {
+  ChangePasswordInput,
   CreateUserInput,
   SystemUser,
+  UpdateProfileInput,
   UpdateUserInput,
   Role,
 } from "@his/shared";
@@ -28,4 +30,18 @@ export async function updateUser(id: string, payload: UpdateUserInput): Promise<
 
 export async function resetUserPassword(id: string, password: string): Promise<void> {
   await api.patch(`/users/${id}/password`, { password });
+}
+
+export async function getMe(): Promise<SystemUser> {
+  const { data } = await api.get<SystemUser>("/users/me");
+  return data;
+}
+
+export async function updateMe(payload: UpdateProfileInput): Promise<SystemUser> {
+  const { data } = await api.patch<SystemUser>("/users/me", payload);
+  return data;
+}
+
+export async function changeMyPassword(payload: ChangePasswordInput): Promise<void> {
+  await api.patch("/users/me/password", payload);
 }

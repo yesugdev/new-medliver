@@ -33,6 +33,7 @@ export class EmrService {
       doctorId: doc.doctorId.toString(),
       doctorName: doctor?.fullName ?? "—",
       appointmentId: doc.appointmentId?.toString(),
+      visitType: (doc as any).visitType,
       visitDate: doc.visitDate.toISOString(),
       status: doc.status,
       chiefComplaint: doc.chiefComplaint,
@@ -52,14 +53,26 @@ export class EmrService {
     const patient = await this.patientModel.findById(dto.patientId).lean();
     if (!patient) throw new BadRequestException("Өвчтөн олдсонгүй");
 
+    /* Idempotency: return existing visit if one already exists for this appointment */
+    if (dto.appointmentId) {
+      const existing = await this.model
+        .findOne({ appointmentId: new Types.ObjectId(dto.appointmentId) })
+        .exec();
+      if (existing) return this.toShared(existing);
+    }
+
     let doctorId = new Types.ObjectId(actor.id);
+    let visitType: string | undefined;
     if (dto.appointmentId) {
       const appt = await this.appointmentModel.findById(dto.appointmentId).exec();
       if (appt) {
         doctorId = appt.doctorId;
-        appt.status = "in_progress";
-        appt.startedAt = new Date();
-        await appt.save();
+        visitType = appt.type;
+        if (appt.status !== "in_progress") {
+          appt.status = "in_progress";
+          appt.startedAt = new Date();
+          await appt.save();
+        }
       }
     }
 
@@ -67,6 +80,7 @@ export class EmrService {
       patientId: new Types.ObjectId(dto.patientId),
       doctorId,
       appointmentId: dto.appointmentId ? new Types.ObjectId(dto.appointmentId) : undefined,
+      visitType,
       visitDate: new Date(),
       status: "in_progress",
       chiefComplaint: dto.chiefComplaint,

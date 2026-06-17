@@ -1,14 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Loader2, PlayCircle, CheckCircle2, Stethoscope } from "lucide-react";
-import { APPOINTMENT_STATUS_LABELS_MN } from "@his/shared";
+import { APPOINTMENT_STATUS_LABELS_MN, APPOINTMENT_TYPE_LABELS_MN } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { getQueue, appointmentAction } from "@/lib/appointments-api";
+import { createVisit } from "@/lib/emr-api";
 import { APPOINTMENT_TONE } from "@/lib/status-tones";
 import { formatTimeMn } from "@/lib/format";
 import { useAuthStore } from "@/stores/auth-store";
@@ -16,6 +18,7 @@ import { extractApiError } from "@/lib/api";
 
 export default function QueuePage() {
   const { toast } = useToast();
+  const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
@@ -25,13 +28,27 @@ export default function QueuePage() {
     refetchInterval: 10_000,
   });
 
+  /* Complete action — still a simple mutation */
   const action = useMutation({
-    mutationFn: ({ id, act }: { id: string; act: "start" | "complete" }) =>
+    mutationFn: ({ id, act }: { id: string; act: "complete" }) =>
       appointmentAction(id, act),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["queue"] });
       qc.invalidateQueries({ queryKey: ["appointments"] });
       toast({ title: "Шинэчиллээ", variant: "success" });
+    },
+    onError: (err) =>
+      toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" }),
+  });
+
+  /* Start visit: create visit (idempotent) then navigate to visit card */
+  const startVisit = useMutation({
+    mutationFn: ({ appointmentId, patientId }: { appointmentId: string; patientId: string }) =>
+      createVisit({ patientId, appointmentId }),
+    onSuccess: (visit) => {
+      qc.invalidateQueries({ queryKey: ["queue"] });
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      router.push(`/emr/visit?visitId=${visit.id}&patientId=${visit.patientId}`);
     },
     onError: (err) =>
       toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" }),
@@ -70,9 +87,14 @@ export default function QueuePage() {
                     {formatTimeMn(a.scheduledAt)}
                   </div>
                 </div>
-                <Badge tone={APPOINTMENT_TONE[a.status]}>
-                  {APPOINTMENT_STATUS_LABELS_MN[a.status]}
-                </Badge>
+                <div className="flex flex-col items-end gap-1.5">
+                  <Badge tone={APPOINTMENT_TONE[a.status]}>
+                    {APPOINTMENT_STATUS_LABELS_MN[a.status]}
+                  </Badge>
+                  <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+                    {APPOINTMENT_TYPE_LABELS_MN[a.type]}
+                  </span>
+                </div>
               </div>
               <Link
                 href={`/patients/${a.patientId}`}
@@ -97,9 +119,16 @@ export default function QueuePage() {
                     <Button
                       size="sm"
                       className="flex-1"
-                      onClick={() => action.mutate({ id: a.id, act: "start" })}
+                      disabled={startVisit.isPending}
+                      onClick={() =>
+                        startVisit.mutate({ appointmentId: a.id, patientId: a.patientId })
+                      }
                     >
-                      <PlayCircle className="h-4 w-4" />
+                      {startVisit.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <PlayCircle className="h-4 w-4" />
+                      )}
                       Үзлэг эхлүүлэх
                     </Button>
                   ) : (
@@ -108,16 +137,23 @@ export default function QueuePage() {
                         size="sm"
                         variant="outline"
                         className="flex-1"
-                        asChild
+                        disabled={startVisit.isPending}
+                        onClick={() =>
+                          startVisit.mutate({ appointmentId: a.id, patientId: a.patientId })
+                        }
                       >
-                        <Link href={`/emr/visit?appointmentId=${a.id}&patientId=${a.patientId}`}>
-                          EMR нээх
-                        </Link>
+                        {startVisit.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <PlayCircle className="h-4 w-4" />
+                        )}
+                        EMR нээх
                       </Button>
                       <Button
                         size="sm"
                         variant="outline"
                         onClick={() => action.mutate({ id: a.id, act: "complete" })}
+                        disabled={action.isPending}
                       >
                         <CheckCircle2 className="h-4 w-4" />
                       </Button>

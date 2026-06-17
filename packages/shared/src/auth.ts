@@ -13,9 +13,21 @@ export interface SystemUser {
   fullName: string;
   role: Role;
   phone?: string;
+  avatar?: string;
   isActive: boolean;
   lastLoginAt?: string;
   createdAt: string;
+}
+
+export interface UpdateProfileInput {
+  fullName?: string;
+  phone?: string;
+  avatar?: string;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
 }
 
 export interface CreateUserInput {

@@ -13,9 +13,11 @@ import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { UsersService } from "./users.service";
 import {
+  ChangePasswordDto,
   CreateUserDto,
   ListUsersDto,
   ResetPasswordDto,
+  UpdateProfileDto,
   UpdateUserDto,
 } from "./dto/create-user.dto";
 import { AuditService } from "../audit/audit.service";
@@ -27,6 +29,24 @@ export class UsersController {
     private readonly audit: AuditService,
   ) {}
 
+  /* ── Current user profile (all roles) ─────────────────────── */
+  @Get("me")
+  getMe(@CurrentUser() actor: AuthUser) {
+    return this.users.getById(actor.id);
+  }
+
+  @Patch("me")
+  async updateMe(@Body() dto: UpdateProfileDto, @CurrentUser() actor: AuthUser) {
+    return this.users.updateProfile(actor.id, dto);
+  }
+
+  @Patch("me/password")
+  async changeMyPassword(@Body() dto: ChangePasswordDto, @CurrentUser() actor: AuthUser) {
+    await this.users.changeMyPassword(actor.id, dto.currentPassword, dto.newPassword);
+    return { success: true };
+  }
+
+  /* ── Admin endpoints ────────────────────────────────────── */
   @Get()
   @Roles(ROLES.ADMIN)
   list(@Query() q: ListUsersDto) {

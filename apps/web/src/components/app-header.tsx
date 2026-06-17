@@ -3,11 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { LogOut, UserCircle, Search, Loader2, User } from "lucide-react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import type { AuthUser } from "@his/shared";
 import { ROLE_LABELS_MN } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { useAuthStore } from "@/stores/auth-store";
 import { listPatients } from "@/lib/patients-api";
+import { getMe } from "@/lib/users-api";
 import type { Patient } from "@his/shared";
 
 /* ─── Mongolian date formatter ──────────────────────────────────── */
@@ -143,6 +146,16 @@ export function AppHeader({ user }: { user: AuthUser }) {
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
 
+  /* Fetch full profile to get avatar; uses the same cache key as /profile page */
+  const { data: profile } = useQuery({
+    queryKey: ["me"],
+    queryFn: getMe,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const initials = (user.fullName[0] ?? "?").toUpperCase();
+  const avatar   = profile?.avatar;
+
   const handleLogout = () => {
     logout();
     router.replace("/login");
@@ -162,9 +175,16 @@ export function AppHeader({ user }: { user: AuthUser }) {
 
       {/* Right: user + logout */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2">
-          <div className="h-9 w-9 rounded-full bg-muted flex items-center justify-center">
-            <UserCircle className="h-5 w-5 text-muted-foreground" />
+        <Link
+          href="/profile"
+          className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted/50 transition-colors"
+        >
+          <div className="h-9 w-9 rounded-full overflow-hidden bg-primary/10 flex items-center justify-center shrink-0">
+            {avatar ? (
+              <img src={avatar} alt="avatar" className="h-full w-full object-cover" />
+            ) : (
+              <span className="text-sm font-bold text-primary select-none">{initials}</span>
+            )}
           </div>
           <div className="leading-tight hidden sm:block">
             <div className="text-sm font-medium">{user.fullName}</div>
@@ -172,7 +192,7 @@ export function AppHeader({ user }: { user: AuthUser }) {
               {ROLE_LABELS_MN[user.role]}
             </div>
           </div>
-        </div>
+        </Link>
         <Button variant="ghost" size="sm" onClick={handleLogout}>
           <LogOut className="h-4 w-4" />
           <span className="hidden sm:inline">Гарах</span>

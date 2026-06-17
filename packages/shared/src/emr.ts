@@ -61,6 +61,8 @@ export interface Visit {
   doctorId: string;
   doctorName: string;
   appointmentId?: string;
+  /** Mirrors the appointment's type — set automatically when visit is created from an appointment */
+  visitType?: import("./appointment").AppointmentType;
   visitDate: string;
   status: VisitStatus;
   chiefComplaint?: string;

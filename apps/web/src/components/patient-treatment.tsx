@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown, ChevronUp, Plus, Trash2,
-  Loader2, Pill, CalendarDays, User, Printer, List, PenLine,
+  Loader2, Pill, CalendarDays, User, Printer, List, PenLine, Hospital,
 } from "lucide-react";
 import { DRUG_ROUTES } from "@his/shared";
 import type { TreatmentDrug, TreatmentRecord } from "@his/shared";
@@ -18,7 +18,7 @@ import { listDrugs } from "@/lib/drugs-api";
 import { getPrintConfig } from "@/lib/print-config-api";
 import { openPrintWindow } from "@/lib/print-utils";
 import { extractApiError } from "@/lib/api";
-import { formatDateTimeMn } from "@/lib/utils";
+import { formatDateTimeMn, cn } from "@/lib/utils";
 
 type DrugMode = "inventory" | "custom";
 
@@ -269,6 +269,7 @@ function AddTreatmentForm({
   const { toast } = useToast();
   const [drugs, setDrugs] = useState<TreatmentDrug[]>([emptyDrug()]);
   const [modes, setModes] = useState<DrugMode[]>(["inventory"]);
+  const [addToTasks, setAddToTasks] = useState(false);
 
   const { data: inventoryDrugs = [] } = useQuery({
     queryKey: ["drugs-active"],
@@ -293,12 +294,18 @@ function AddTreatmentForm({
     mutationFn: () => {
       const valid = drugs.filter((d) => d.nameFormDosage.trim());
       if (valid.length === 0) throw new Error("Эмийн нэр оруулна уу");
-      return createTreatment(patientId, { drugs: valid });
+      return createTreatment(patientId, { drugs: valid, addToTasks });
     },
     onSuccess: () => {
-      toast({ title: "Эмчилгээ хадгалагдлаа", variant: "success" });
+      toast({
+        title: "Эмчилгээ хадгалагдлаа",
+        description: addToTasks ? "Эмчилгээний To-Do жагсаалтад нэмэгдлээ" : undefined,
+        variant: "success",
+      });
       qc.invalidateQueries({ queryKey: ["treatments", patientId] });
+      if (addToTasks) qc.invalidateQueries({ queryKey: ["treatment-tasks"] });
       setDrugs([emptyDrug()]);
+      setAddToTasks(false);
       onSaved();
     },
     onError: (e) =>
@@ -335,6 +342,47 @@ function AddTreatmentForm({
           />
         ))}
       </div>
+
+      {/* Hospital task toggle */}
+      <button
+        type="button"
+        onClick={() => setAddToTasks((v) => !v)}
+        className={cn(
+          "w-full flex items-center justify-between px-4 py-3 rounded-xl border-2 transition-colors",
+          addToTasks
+            ? "border-primary bg-primary/5"
+            : "border-border bg-muted/30 hover:bg-muted/50",
+        )}
+      >
+        <div className="flex items-center gap-3">
+          <div className={cn(
+            "h-9 w-9 rounded-lg flex items-center justify-center shrink-0 transition-colors",
+            addToTasks ? "bg-primary text-white" : "bg-muted text-muted-foreground",
+          )}>
+            <Hospital className="h-4.5 w-4.5" />
+          </div>
+          <div className="text-left">
+            <div className={cn("text-sm font-semibold", addToTasks ? "text-primary" : "text-foreground")}>
+              Эмнэлэг дээр хийлгэх
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {addToTasks
+                ? "Эмчилгээний To-Do жагсаалтад нэмэгдэнэ"
+                : "To-Do жагсаалтад нэмэхгүй"}
+            </div>
+          </div>
+        </div>
+        {/* Toggle switch */}
+        <div className={cn(
+          "relative h-6 w-11 rounded-full transition-colors duration-200 shrink-0",
+          addToTasks ? "bg-primary" : "bg-border",
+        )}>
+          <div className={cn(
+            "absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200",
+            addToTasks ? "translate-x-5" : "translate-x-0.5",
+          )} />
+        </div>
+      </button>
 
       {/* Save */}
       <div className="flex justify-end pt-1">

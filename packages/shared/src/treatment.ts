@@ -50,4 +50,6 @@ export interface TreatmentRecord {
 
 export interface CreateTreatmentInput {
   drugs: TreatmentDrug[];
+  /** Эмнэлэг дээр хийлгэх — true үед Treatment To-Do жагсаалтад нэмнэ */
+  addToTasks?: boolean;
 }
