@@ -13,3 +13,4 @@ export * from "./drug";
 export * from "./print-config";
 export * from "./treatment-task";
 export * from "./complaint";
+export * from "./diagnosis";

@@ -3,7 +3,7 @@
 import { use, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Pencil, Phone, Mail, MapPin, ChevronDown, FlaskConical, FileText, Receipt, Stethoscope } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Phone, Mail, MapPin, ChevronDown, FlaskConical, FileText, Receipt, Stethoscope, ClipboardList } from "lucide-react";
 import { GENDER_LABELS_MN } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,6 +16,7 @@ import { PatientLabOrders } from "@/components/patient-lab-orders";
 import { PatientMedicalHistory } from "@/components/patient-medical-history";
 import { PatientTreatment } from "@/components/patient-treatment";
 import { PatientComplaints } from "@/components/patient-complaints";
+import { PatientDiagnoses } from "@/components/patient-diagnoses";
 
 /* ─── Collapsible section wrapper ───────────────────────────────── */
 function CollapsibleSection({
@@ -253,6 +254,13 @@ export default function PatientDetailPage({
         icon={<Stethoscope className="h-4 w-4" />}
       >
         <PatientComplaints patientId={patient.id} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Оноош"
+        icon={<ClipboardList className="h-4 w-4" />}
+      >
+        <PatientDiagnoses patientId={patient.id} />
       </CollapsibleSection>
 
       <PatientMedicalHistory patientId={patient.id} />
