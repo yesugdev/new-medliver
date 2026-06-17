@@ -21,7 +21,7 @@ function OptionsPanel({
   title,
   category,
   items,
-  onAdd,
+  onAddMany,
   onDelete,
   adding,
   deleting,
@@ -29,19 +29,24 @@ function OptionsPanel({
   title: string;
   category: "complaint" | "location";
   items: ComplaintOption[];
-  onAdd: (category: "complaint" | "location", name: string) => void;
+  onAddMany: (category: "complaint" | "location", names: string[]) => void;
   onDelete: (id: string) => void;
   adding: boolean;
   deleting: string | null;
 }) {
-  const [newName, setNewName] = useState("");
+  const [text, setText] = useState("");
 
   const handleAdd = () => {
-    const trimmed = newName.trim();
-    if (!trimmed) return;
-    onAdd(category, trimmed);
-    setNewName("");
+    const lines = text
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) return;
+    onAddMany(category, lines);
+    setText("");
   };
+
+  const lineCount = text.split("\n").filter((l) => l.trim()).length;
 
   return (
     <Card>
@@ -50,17 +55,22 @@ function OptionsPanel({
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Existing options */}
-        <div className="divide-y divide-border rounded-md border border-border overflow-hidden">
+        <div className="divide-y divide-border rounded-md border border-border overflow-hidden max-h-72 overflow-y-auto">
           {items.length === 0 && (
-            <div className="px-4 py-3 text-sm text-muted-foreground">Сонголт байхгүй байна</div>
+            <div className="px-4 py-3 text-sm text-muted-foreground">
+              Сонголт байхгүй байна
+            </div>
           )}
           {items.map((opt) => (
-            <div key={opt.id} className="flex items-center justify-between px-4 py-2.5 bg-card hover:bg-muted/30 transition-colors">
+            <div
+              key={opt.id}
+              className="flex items-center justify-between px-4 py-2.5 bg-card hover:bg-muted/30 transition-colors"
+            >
               <span className="text-sm">{opt.name}</span>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-destructive hover:bg-destructive/10"
+                className="h-7 w-7 text-destructive hover:bg-destructive/10 shrink-0"
                 onClick={() => onDelete(opt.id)}
                 disabled={deleting === opt.id}
               >
@@ -74,20 +84,32 @@ function OptionsPanel({
           ))}
         </div>
 
-        {/* Add new */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-            placeholder="Шинэ сонголт нэмэх..."
-            className="flex-1 h-9 rounded border border-border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+        {/* Bulk add textarea */}
+        <div className="space-y-2">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            rows={4}
+            placeholder={"Нэг мөрт нэг сонголт бичнэ үү\nЖишээ нь:\nТолгой өвдөнө\nЯдарч сульдана"}
+            className="w-full rounded border border-border bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-ring"
           />
-          <Button size="sm" onClick={handleAdd} disabled={adding || !newName.trim()}>
-            {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-            Нэмэх
-          </Button>
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-muted-foreground">
+              {lineCount > 0 ? `${lineCount} мөр нэмэгдэнэ` : ""}
+            </span>
+            <Button
+              size="sm"
+              onClick={handleAdd}
+              disabled={adding || lineCount === 0}
+            >
+              {adding ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              Нэмэх
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -106,8 +128,11 @@ export default function ComplaintOptionsPage() {
   });
 
   const addMutation = useMutation({
-    mutationFn: (data: { category: "complaint" | "location"; name: string }) =>
-      createComplaintOption(data),
+    mutationFn: async (data: { category: "complaint" | "location"; names: string[] }) => {
+      for (const name of data.names) {
+        await createComplaintOption({ category: data.category, name });
+      }
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["complaint-options"] }),
   });
 
@@ -125,51 +150,51 @@ export default function ComplaintOptionsPage() {
 
   return (
     <AuthGuard allowedRoles={[ROLES.ADMIN]}>
-    <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" asChild>
-          <Link href="/settings">
-            <ArrowLeft className="h-4 w-4" />
-          </Link>
-        </Button>
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-            <Stethoscope className="h-5 w-5" />
-            Зовуурийн сонголтууд
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Зовуурь болон байрлалын dropdown сонголтуудыг удирдах
-          </p>
+      <div className="space-y-6 max-w-3xl">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/settings">
+              <ArrowLeft className="h-4 w-4" />
+            </Link>
+          </Button>
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
+              <Stethoscope className="h-5 w-5" />
+              Зовуурийн сонголтууд
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Нэг мөрт нэг сонголт бичих буюу paste хийгээд Нэмэх дарна
+            </p>
+          </div>
         </div>
-      </div>
 
-      {isLoading ? (
-        <div className="flex justify-center py-16">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          <OptionsPanel
-            title="Зовуурийн сонголт"
-            category="complaint"
-            items={complaints}
-            onAdd={(cat, name) => addMutation.mutate({ category: cat, name })}
-            onDelete={(id) => deleteMutation.mutate(id)}
-            adding={addMutation.isPending}
-            deleting={deletingId}
-          />
-          <OptionsPanel
-            title="Байрлалын сонголт"
-            category="location"
-            items={locations}
-            onAdd={(cat, name) => addMutation.mutate({ category: cat, name })}
-            onDelete={(id) => deleteMutation.mutate(id)}
-            adding={addMutation.isPending}
-            deleting={deletingId}
-          />
-        </div>
-      )}
-    </div>
+        {isLoading ? (
+          <div className="flex justify-center py-16">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <OptionsPanel
+              title="Зовуурийн сонголт"
+              category="complaint"
+              items={complaints}
+              onAddMany={(cat, names) => addMutation.mutate({ category: cat, names })}
+              onDelete={(id) => deleteMutation.mutate(id)}
+              adding={addMutation.isPending}
+              deleting={deletingId}
+            />
+            <OptionsPanel
+              title="Байрлалын сонголт"
+              category="location"
+              items={locations}
+              onAddMany={(cat, names) => addMutation.mutate({ category: cat, names })}
+              onDelete={(id) => deleteMutation.mutate(id)}
+              adding={addMutation.isPending}
+              deleting={deletingId}
+            />
+          </div>
+        )}
+      </div>
     </AuthGuard>
   );
 }
