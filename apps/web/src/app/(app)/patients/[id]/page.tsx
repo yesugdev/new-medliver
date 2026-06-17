@@ -257,7 +257,7 @@ export default function PatientDetailPage({
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="Оноош"
+        title="Онош"
         icon={<ClipboardList className="h-4 w-4" />}
       >
         <PatientDiagnoses patientId={patient.id} />
