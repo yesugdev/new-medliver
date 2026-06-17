@@ -5,6 +5,7 @@ export interface ListTasksParams {
   date?: string;
   patientId?: string;
   status?: string;
+  q?: string;
 }
 
 export async function listTreatmentTasks(params: ListTasksParams): Promise<TreatmentTask[]> {

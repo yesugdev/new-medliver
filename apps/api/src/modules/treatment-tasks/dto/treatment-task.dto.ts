@@ -20,4 +20,5 @@ export class ListTreatmentTasksDto {
   @IsOptional() @IsString() date?: string;
   @IsOptional() @IsString() patientId?: string;
   @IsOptional() @IsEnum(["pending", "done", "skipped"]) status?: string;
+  @IsOptional() @IsString() q?: string;
 }

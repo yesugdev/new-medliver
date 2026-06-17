@@ -3,6 +3,7 @@ import { InjectModel } from "@nestjs/mongoose";
 import { Model, FilterQuery, Types } from "mongoose";
 import type { AuthUser, TreatmentTask } from "@his/shared";
 import { TreatmentTaskEntity, TreatmentTaskDocument } from "./treatment-task.schema";
+import { Patient, PatientDocument } from "../patients/patient.schema";
 import { CreateTreatmentTaskDto, UpdateTreatmentTaskDto, ListTreatmentTasksDto } from "./dto/treatment-task.dto";
 
 function todayStr() {
@@ -14,6 +15,8 @@ export class TreatmentTaskService {
   constructor(
     @InjectModel(TreatmentTaskEntity.name)
     private readonly model: Model<TreatmentTaskDocument>,
+    @InjectModel(Patient.name)
+    private readonly patientModel: Model<PatientDocument>,
   ) {}
 
   private toShared(doc: TreatmentTaskDocument): TreatmentTask {
@@ -46,6 +49,27 @@ export class TreatmentTaskService {
     filter.scheduledDate = query.date ?? todayStr();
     if (query.patientId) filter.patientId = new Types.ObjectId(query.patientId);
     if (query.status)    filter.status    = query.status;
+
+    if (query.q?.trim()) {
+      const safe = query.q.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const regex = { $regex: safe, $options: "i" };
+
+      // Find patients whose registerNumber matches — for tasks that predate the field
+      const matchedPatients = await this.patientModel
+        .find({ registerNumber: regex })
+        .select("_id")
+        .lean()
+        .exec();
+      const matchedIds = matchedPatients.map((p) => new Types.ObjectId((p as any)._id));
+
+      filter.$or = [
+        { patientName:    regex },
+        { patientCode:    regex },
+        { drugName:       regex },
+        { registerNumber: regex },
+        ...(matchedIds.length > 0 ? [{ patientId: { $in: matchedIds } }] : []),
+      ];
+    }
 
     const docs = await this.model
       .find(filter)

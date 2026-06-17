@@ -263,39 +263,35 @@ function PatientGroup({
 /* ─── Main page ─────────────────────────────────────────────────── */
 export default function TreatmentTasksPage() {
   const user = useAuthStore((s) => s.user);
-  const [date,   setDate]   = useState(todayStr());
-  const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"all" | "pending" | "done">("all");
+  const [date,        setDate]        = useState(todayStr());
+  const [search,      setSearch]      = useState("");
+  const [debouncedQ,  setDebouncedQ]  = useState("");
+  const [filter,      setFilter]      = useState<"all" | "pending" | "done">("all");
 
-  const qk = ["treatment-tasks", date, filter === "all" ? undefined : filter];
+  // Debounce search → send to backend after 300ms
+  const handleSearch = (v: string) => {
+    setSearch(v);
+    clearTimeout((handleSearch as any)._t);
+    (handleSearch as any)._t = setTimeout(() => setDebouncedQ(v), 300);
+  };
 
   const { data: tasks = [], isLoading } = useQuery({
-    queryKey: qk,
+    queryKey: ["treatment-tasks", date, filter, debouncedQ],
     queryFn: () => listTreatmentTasks({
       date,
       status: filter === "all" ? undefined : filter,
+      q:      debouncedQ.trim() || undefined,
     }),
     refetchInterval: 30_000,
+    placeholderData: (prev) => prev,
   });
 
   const canDelete = user?.role === "admin" || user?.role === "doctor";
 
-  /* Filter by search */
-  const filtered = useMemo(() => {
-    if (!search.trim()) return tasks;
-    const q = search.toLowerCase().replace(/\s+/g, "");
-    return tasks.filter((t) =>
-      t.patientName.toLowerCase().replace(/\s+/g, "").includes(q) ||
-      t.patientCode.toLowerCase().includes(q) ||
-      t.drugName.toLowerCase().includes(q) ||
-      (t.registerNumber ?? "").toLowerCase().includes(q),
-    );
-  }, [tasks, search]);
-
   /* Group by patient */
   const grouped = useMemo(() => {
     const map = new Map<string, { name: string; code: string; registerNumber?: string; tasks: TreatmentTask[] }>();
-    for (const t of filtered) {
+    for (const t of tasks) {
       if (!map.has(t.patientId)) {
         map.set(t.patientId, { name: t.patientName, code: t.patientCode, registerNumber: t.registerNumber, tasks: [] });
       }
@@ -307,7 +303,7 @@ export default function TreatmentTasksPage() {
       const bPending = b.tasks.filter((x) => x.status === "pending").length;
       return bPending - aPending;
     });
-  }, [filtered]);
+  }, [tasks]);
 
   /* Summary counts */
   const totalPending = tasks.filter((t) => t.status === "pending").length;
@@ -373,7 +369,7 @@ export default function TreatmentTasksPage() {
           <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => handleSearch(e.target.value)}
             placeholder="Өвчтөний нэр · эм · регистр..."
             className="pl-8 h-9 text-sm"
           />
@@ -409,7 +405,7 @@ export default function TreatmentTasksPage() {
           <CardContent className="py-16 text-center">
             <ClipboardCheck className="h-12 w-12 mx-auto mb-4 text-muted-foreground/30" />
             <p className="text-muted-foreground text-sm font-medium">
-              {search ? "Хайлтад тохирох даалгавар олдсонгүй" : "Энэ өдөрт эмчилгээний даалгавар байхгүй байна"}
+              {debouncedQ ? "Хайлтад тохирох даалгавар олдсонгүй" : "Энэ өдөрт эмчилгээний даалгавар байхгүй байна"}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
               Эмийн жор бичсэний дараа автоматаар үүснэ

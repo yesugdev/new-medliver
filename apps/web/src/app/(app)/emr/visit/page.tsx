@@ -401,16 +401,13 @@ function printVisit(params: {
   visit: import("@his/shared").Visit;
   patientName: string;
   patientCode: string;
-  chiefComplaint: string;
-  symptoms: string;
-  diagnosis: string;
   notes: string;
   templateTabs: EmrTabConfig[];
   clinicalNotes: Record<string, Record<string, string | number | boolean>>;
   printConfig?: import("@his/shared").PrintConfig;
   patientRaw?: import("@/lib/print-utils").PrintPatientInfo;
 }) {
-  const { visit, patientName, patientCode, chiefComplaint, symptoms, diagnosis, notes, templateTabs, clinicalNotes, printConfig } = params;
+  const { visit, patientName, patientCode, notes, templateTabs, clinicalNotes, printConfig } = params;
 
   const c = cfg(printConfig);
   const visitTypeLabel = visit.visitType
@@ -427,10 +424,7 @@ function printVisit(params: {
        </div>`;
 
   const basicFields = [
-    { label: "Зовиур",      value: chiefComplaint },
-    { label: "Шинж тэмдэг", value: symptoms },
-    { label: "Онош",         value: diagnosis },
-    { label: "Тэмдэглэл",   value: notes },
+    { label: "Тэмдэглэл", value: notes },
   ].filter((f) => f.value);
 
   const basicHtml = basicFields.map((f) => `
@@ -507,10 +501,7 @@ function VisitForm() {
   const [activeTab, setActiveTab] = useState(0); // 0 = Tab1 (visit info), 1+ = template tabs
 
   /* Tab 1 form state */
-  const [chiefComplaint, setChiefComplaint] = useState("");
-  const [symptoms,       setSymptoms]       = useState("");
-  const [diagnosis,      setDiagnosis]      = useState("");
-  const [notes,          setNotes]          = useState("");
+  const [notes, setNotes] = useState("");
 
   /* Tab 2+ clinical notes: Record<sectionId, Record<fieldId, value>> */
   const [clinicalNotes, setClinicalNotes] = useState<Record<string, Record<string, string | number | boolean>>>({});
@@ -548,9 +539,6 @@ function VisitForm() {
     if (existingVisit.data && !populated.current) {
       populated.current = true;
       const v = existingVisit.data;
-      setChiefComplaint(v.chiefComplaint ?? "");
-      setSymptoms(v.symptoms ?? "");
-      setDiagnosis(v.diagnosis ?? "");
       setNotes(v.notes ?? "");
       setClinicalNotes((v.clinicalNotes as Record<string, Record<string, string | number | boolean>>) ?? {});
     }
@@ -599,9 +587,6 @@ function VisitForm() {
   const save = useMutation({
     mutationFn: (status?: "completed") =>
       updateVisit(visitId, {
-        chiefComplaint,
-        symptoms,
-        diagnosis,
         notes,
         clinicalNotes,
         status,
@@ -689,9 +674,6 @@ function VisitForm() {
                     ? `${patient.data.lastName} ${patient.data.firstName}`
                     : "",
                   patientCode: patient.data?.patientCode ?? "",
-                  chiefComplaint,
-                  symptoms,
-                  diagnosis,
                   notes,
                   templateTabs,
                   clinicalNotes,
@@ -762,52 +744,6 @@ function VisitForm() {
       {/* ── TAB 1: Үзлэгийн мэдээлэл ────────────────────────────────── */}
       {activeTab === 0 && (
         <div className="space-y-6">
-          {/* Clinical info */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Үзлэгийн мэдээлэл</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {canEdit ? (
-                <>
-                  <div className="space-y-2">
-                    <Label>Зовиур</Label>
-                    <Textarea
-                      rows={2}
-                      value={chiefComplaint}
-                      onChange={(e) => setChiefComplaint(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Шинж тэмдэг</Label>
-                    <Textarea
-                      rows={3}
-                      value={symptoms}
-                      onChange={(e) => setSymptoms(e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Онош</Label>
-                    <Textarea
-                      rows={2}
-                      value={diagnosis}
-                      onChange={(e) => setDiagnosis(e.target.value)}
-                    />
-                  </div>
-                </>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <ReadField label="Зовиур"       value={chiefComplaint} />
-                  <ReadField label="Шинж тэмдэг"  value={symptoms} />
-                  <ReadField label="Онош"          value={diagnosis} />
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Treatment — integrated module */}
-          <PatientTreatment patientId={patientId} defaultOpen />
-
           {/* Notes */}
           <Card>
             <CardHeader>
@@ -816,15 +752,19 @@ function VisitForm() {
             <CardContent>
               {canEdit ? (
                 <Textarea
-                  rows={3}
+                  rows={5}
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Үзлэгийн тэмдэглэл..."
                 />
               ) : (
                 <ReadField label="" value={notes} />
               )}
             </CardContent>
           </Card>
+
+          {/* Treatment — integrated module */}
+          <PatientTreatment patientId={patientId} defaultOpen />
         </div>
       )}
 
