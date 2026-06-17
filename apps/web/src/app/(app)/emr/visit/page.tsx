@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Loader2, Save, CheckCircle2, Lock, User as UserIcon,
-  ArrowLeft, ChevronDown, ChevronUp, FileText, Printer,
+  ArrowLeft, ChevronDown, FileText, Printer,
 } from "lucide-react";
 import type { EmrTabConfig, EmrSectionConfig, EmrFieldConfig } from "@his/shared";
 import { VISIT_STATUS_LABELS_MN } from "@his/shared";
@@ -21,7 +21,7 @@ import { createVisit, getVisit, updateVisit } from "@/lib/emr-api";
 import { getEmrTemplate } from "@/lib/emr-template-api";
 import { getPatient } from "@/lib/patients-api";
 import { extractApiError } from "@/lib/api";
-import { formatDateTimeMn } from "@/lib/utils";
+import { formatDateTimeMn, cn } from "@/lib/utils";
 import { VISIT_TONE } from "@/lib/status-tones";
 import { PatientVitals } from "@/components/patient-vitals";
 import { PatientTreatment } from "@/components/patient-treatment";
@@ -70,33 +70,63 @@ function DynamicField({
   }
 
   if (readOnly) {
+    if (field.type === "radio") {
+      return (
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{field.label}</div>
+          <div className="flex flex-wrap gap-2">
+            {field.options?.map((opt, i) => (
+              <span key={`${i}-${opt}`}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-sm font-medium border-2",
+                  strVal === opt
+                    ? "bg-primary border-primary text-white"
+                    : "bg-muted/30 border-border text-muted-foreground",
+                )}>
+                {opt}
+              </span>
+            ))}
+            {!strVal && <span className="text-xs text-muted-foreground italic">—</span>}
+          </div>
+        </div>
+      );
+    }
     if (field.type === "checkbox") {
       const hasOpts = (field.options?.length ?? 0) > 0;
       if (!hasOpts) {
         const checked = value === true || value === "true";
         return (
-          <div className="flex items-center gap-2 py-1">
-            <div className={`h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 ${checked ? "border-primary bg-primary" : "border-muted-foreground"}`}>
-              {checked && <div className="h-2 w-2 bg-white rounded-sm" />}
+          <span className={cn(
+            "inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border-2 text-sm font-medium",
+            checked
+              ? "bg-primary/10 border-primary text-primary"
+              : "bg-muted/30 border-border text-muted-foreground",
+          )}>
+            <div className={cn(
+              "h-4 w-4 rounded border-2 flex items-center justify-center shrink-0",
+              checked ? "border-primary bg-primary" : "border-muted-foreground",
+            )}>
+              {checked && <span className="text-white text-[10px] leading-none">✓</span>}
             </div>
-            <span className="text-sm">{field.label}</span>
-          </div>
+            {field.label}
+          </span>
         );
       }
       // Multi-checkbox read-only
       const selected = strVal ? strVal.split(",").map((s) => s.trim()).filter(Boolean) : [];
       return (
-        <div className="space-y-1.5">
-          <div className="text-xs font-medium text-muted-foreground">{field.label}</div>
+        <div className="space-y-2">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">{field.label}</div>
           <div className="flex flex-wrap gap-2">
             {field.options?.map((opt, i) => (
               <span key={`${i}-${opt}`}
-                className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-sm font-medium border-2",
                   selected.includes(opt)
-                    ? "bg-primary/10 border-primary/40 text-primary font-medium"
-                    : "bg-muted/30 border-border text-muted-foreground"
-                }`}>
-                {selected.includes(opt) && <span className="text-[10px]">✓</span>}
+                    ? "bg-primary/10 border-primary text-primary"
+                    : "bg-muted/30 border-border text-muted-foreground",
+                )}>
+                {selected.includes(opt) && <span className="mr-1 text-xs">✓</span>}
                 {opt}
               </span>
             ))}
@@ -165,23 +195,25 @@ function DynamicField({
     case "radio":
       return (
         <div className="space-y-2">
-          <Label className="text-xs font-medium">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             {field.label}
             {field.required && <span className="text-destructive ml-1">*</span>}
-          </Label>
-          <div className="flex flex-wrap gap-3">
+          </div>
+          <div className="flex flex-wrap gap-2">
             {field.options?.map((opt, i) => (
-              <label key={`${i}-${opt}`} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="radio"
-                  name={field.id}
-                  value={opt}
-                  checked={strVal === opt}
-                  onChange={() => onChange(opt)}
-                  className="accent-primary"
-                />
-                <span className="text-sm">{opt}</span>
-              </label>
+              <button
+                key={`${i}-${opt}`}
+                type="button"
+                onClick={() => onChange(strVal === opt ? "" : opt)}
+                className={cn(
+                  "px-3.5 py-1.5 rounded-lg text-sm font-medium border-2 transition-all duration-150",
+                  strVal === opt
+                    ? "bg-primary border-primary text-white shadow-sm"
+                    : "bg-white border-border text-foreground hover:border-primary/60 hover:bg-primary/5",
+                )}
+              >
+                {opt}
+              </button>
             ))}
           </div>
         </div>
@@ -190,24 +222,30 @@ function DynamicField({
     case "checkbox": {
       const hasOpts = (field.options?.length ?? 0) > 0;
       if (!hasOpts) {
-        // Single boolean checkbox
         const checked = value === true || value === "true";
         return (
-          <label className="flex items-center gap-2 cursor-pointer py-1">
-            <input
-              type="checkbox"
-              checked={checked}
-              onChange={(e) => onChange(e.target.checked)}
-              className="h-4 w-4 accent-primary"
-            />
-            <span className="text-sm font-medium">
-              {field.label}
-              {field.required && <span className="text-destructive ml-1">*</span>}
-            </span>
-          </label>
+          <button
+            type="button"
+            onClick={() => onChange(!checked)}
+            className={cn(
+              "flex items-center gap-2.5 px-3.5 py-1.5 rounded-lg border-2 text-sm font-medium transition-all duration-150",
+              checked
+                ? "bg-primary/10 border-primary text-primary"
+                : "bg-white border-border text-foreground hover:border-primary/50 hover:bg-primary/5",
+            )}
+          >
+            <div className={cn(
+              "h-4 w-4 rounded border-2 flex items-center justify-center shrink-0 transition-colors",
+              checked ? "border-primary bg-primary" : "border-muted-foreground",
+            )}>
+              {checked && <span className="text-white text-[10px] leading-none">✓</span>}
+            </div>
+            {field.label}
+            {field.required && <span className="text-destructive ml-0.5">*</span>}
+          </button>
         );
       }
-      // Multi-select checkboxes — value stored as comma-separated string
+      // Multi-select — pill toggle buttons
       const selected = strVal ? strVal.split(",").map((s) => s.trim()).filter(Boolean) : [];
       const toggleOpt = (opt: string) => {
         const next = selected.includes(opt)
@@ -217,22 +255,30 @@ function DynamicField({
       };
       return (
         <div className="space-y-2">
-          <Label className="text-xs font-medium">
+          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             {field.label}
             {field.required && <span className="text-destructive ml-1">*</span>}
-          </Label>
-          <div className="flex flex-wrap gap-3">
-            {field.options?.map((opt, i) => (
-              <label key={`${i}-${opt}`} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={selected.includes(opt)}
-                  onChange={() => toggleOpt(opt)}
-                  className="h-4 w-4 accent-primary"
-                />
-                <span className="text-sm">{opt}</span>
-              </label>
-            ))}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {field.options?.map((opt, i) => {
+              const active = selected.includes(opt);
+              return (
+                <button
+                  key={`${i}-${opt}`}
+                  type="button"
+                  onClick={() => toggleOpt(opt)}
+                  className={cn(
+                    "px-3.5 py-1.5 rounded-lg text-sm font-medium border-2 transition-all duration-150",
+                    active
+                      ? "bg-primary/10 border-primary text-primary"
+                      : "bg-white border-border text-foreground hover:border-primary/50 hover:bg-primary/5",
+                  )}
+                >
+                  {active && <span className="mr-1 text-xs">✓</span>}
+                  {opt}
+                </button>
+              );
+            })}
           </div>
         </div>
       );
@@ -273,34 +319,61 @@ function AccordionSection({
 }) {
   const [open, setOpen] = useState(false);
 
+  const filledCount = section.fields?.filter(
+    (f) => sectionNotes[f.id] != null && sectionNotes[f.id] !== "",
+  ).length ?? 0;
+  const totalCount = section.fields?.filter((f) => f.type !== "separator").length ?? 0;
+  const hasData = filledCount > 0;
+
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
-      {/* Accordion header */}
+    <div className={cn(
+      "rounded-xl border overflow-hidden transition-all duration-150",
+      open ? "border-primary/30 shadow-sm" : "border-border",
+    )}>
+      {/* Header */}
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="w-full flex items-center justify-between px-4 py-3 bg-muted/30 hover:bg-muted/50 transition-colors text-left"
-      >
-        <span className="text-sm font-semibold">{section.name}</span>
-        {open ? (
-          <ChevronUp className="h-4 w-4 text-muted-foreground shrink-0" />
-        ) : (
-          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+        className={cn(
+          "w-full flex items-center justify-between px-5 py-3.5 text-left transition-colors",
+          open ? "bg-primary/5 hover:bg-primary/8" : "bg-card hover:bg-muted/30",
         )}
+      >
+        <div className="flex items-center gap-3">
+          {/* filled indicator */}
+          <div className={cn(
+            "h-2 w-2 rounded-full shrink-0 transition-colors",
+            hasData ? "bg-primary" : "bg-border",
+          )} />
+          <span className={cn("text-sm font-semibold", open && "text-primary")}>
+            {section.name}
+          </span>
+          {/* fill count badge */}
+          {totalCount > 0 && (
+            <span className={cn(
+              "text-[10px] px-1.5 py-0.5 rounded-full font-medium",
+              hasData ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground",
+            )}>
+              {filledCount}/{totalCount}
+            </span>
+          )}
+        </div>
+        <ChevronDown className={cn(
+          "h-4 w-4 shrink-0 transition-transform duration-200",
+          open ? "rotate-180 text-primary" : "text-muted-foreground",
+        )} />
       </button>
 
-      {/* Accordion content */}
+      {/* Content */}
       {open && (
-        <div className="px-4 py-4">
+        <div className="px-5 py-5 border-t border-border bg-white">
           {section.type === "vitals" ? (
-            /* Vitals module — embedded PatientVitals component */
             <PatientVitals patientId={patientId} />
           ) : section.fields && section.fields.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-5">
               {section.fields.map((field) => (
-                <div
-                  key={field.id}
-                  className={["textarea", "radio", "separator"].includes(field.type) ? "md:col-span-2" : ""}
+                <div key={field.id}
+                  className={field.type === "separator" ? "col-span-full" : ""}
                 >
                   <DynamicField
                     field={field}
