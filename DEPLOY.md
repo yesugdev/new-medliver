@@ -1,6 +1,7 @@
 # MEDLIVER HIS — Deployment Guide
 
 > **Орчин:** Ubuntu 22.04 LTS · Docker · Nginx · MongoDB 7 · Let's Encrypt SSL  
+> **Домэйн:** `app.medliver.mn`  
 > **Зориулалт:** 2000+ өвчтөн, 50 зэрэгцэх хэрэглэгч
 
 ---
@@ -13,14 +14,15 @@
 4. [DNS тохиргоо (Cloudflare)](#4-dns-тохиргоо-cloudflare)
 5. [Серверийн анхны тохиргоо](#5-серверийн-анхны-тохиргоо)
 6. [Docker суулгах](#6-docker-суулгах)
-7. [Код серверт оруулах](#7-код-серверт-оруулах)
-8. [SSL сертификат авах](#8-ssl-сертификат-авах)
-9. [Системийг ажиллуулах](#9-системийг-ажиллуулах)
-10. [Анхны өгөгдөл (Seed)](#10-анхны-өгөгдөл-seed)
-11. [Галт хана (Firewall)](#11-галт-хана-firewall)
-12. [Өдөр тутмын backup](#12-өдөр-тутмын-backup)
-13. [Шинэчлэх (Update)](#13-шинэчлэх-update)
-14. [Алдааг засах (Troubleshooting)](#14-алдааг-засах-troubleshooting)
+7. [MongoDB суулгах ба тохиргоо](#7-mongodb-суулгах-ба-тохиргоо)
+8. [Код серверт оруулах](#8-код-серверт-оруулах)
+9. [SSL сертификат авах](#9-ssl-сертификат-авах)
+10. [Системийг ажиллуулах](#10-системийг-ажиллуулах)
+11. [Анхны өгөгдөл (Seed)](#11-анхны-өгөгдөл-seed)
+12. [Галт хана (Firewall)](#12-галт-хана-firewall)
+13. [Өдөр тутмын Backup](#13-өдөр-тутмын-backup)
+14. [Шинэчлэх (Update)](#14-шинэчлэх-update)
+15. [Алдааг засах (Troubleshooting)](#15-алдааг-засах-troubleshooting)
 
 ---
 
@@ -74,10 +76,12 @@
 
 **Бүртгэх алхам:**
 1. Дээрх вэбсайтуудын аль нэгд бүртгэл үүсгэнэ
-2. Хүссэн домэйнаа хайна (жишээ: `medliver.mn`)
+2. `medliver.mn` домэйн хайна
 3. Монгол иргэний үнэмлэхний мэдээлэл оруулна
 4. Төлбөр хийнэ
 5. 1-2 хоногийн дотор домэйн идэвхждэг
+
+> `app.medliver.mn` бол `medliver.mn` эзэмшиж байхад Cloudflare дотор **subdomain** нэмэхэд л хангалттай
 
 ---
 
@@ -87,24 +91,26 @@ Cloudflare ашиглах нь — **үнэгүй**, **DDoS хамгаалалт
 
 ### Cloudflare тохируулах
 
-1. **cloudflare.com** → нэвтрэх → "Add a Site" → домэйнаа оруулна
+1. **cloudflare.com** → нэвтрэх → "Add a Site" → `medliver.mn` оруулна
 2. **Free plan** сонгоно
 3. Cloudflare 2 nameserver өгнө (жишээ: `ns1.cloudflare.com`, `ns2.cloudflare.com`)
 4. Домэйн бүртгэгч рүүгээ буцаж nameserver-ийг солино
-5. **DNS Records** хэсэгт:
+5. **DNS Records** хэсэгт дараах бичлэг нэмнэ:
 
 ```
-Type  Name   Content          Proxy
-A     @      <серверийн IP>   ✅ Proxied
-A     www    <серверийн IP>   ✅ Proxied
+Type   Name    Content          Proxy
+A      @       <серверийн IP>   ✅ Proxied
+A      www     <серверийн IP>   ✅ Proxied
+A      app     <серверийн IP>   ✅ Proxied
 ```
 
-> Серверийн IP-г Contabo-ийн хяналтын самбараас авна
+> `app` гэсэн A бичлэг нэмснээр `app.medliver.mn` ажиллана
 
 **Шалгах:**
 ```bash
 # DNS тархсан эсэхийг шалгах (~5-30 минут хүлээх)
-nslookup medliver.mn
+nslookup app.medliver.mn
+# → серверийн IP буцаах ёстой
 ```
 
 ---
@@ -120,7 +126,7 @@ ssh root@<СЕРВЕРИЙН_IP>
 
 ```bash
 apt update && apt upgrade -y
-apt install -y curl git unzip ufw htop nano
+apt install -y curl git unzip ufw htop nano gnupg
 ```
 
 ### 5.2 Аюулгүй хэрэглэгч үүсгэх
@@ -161,15 +167,160 @@ sudo usermod -aG docker deploy
 docker compose version
 # → Docker Compose version v2.x.x гарах ёстой
 
-# Сервер дахин ачаалах шаардлагагүй, шинэ терминал нээнэ
+# Шинэ терминал session нээх (group refresh)
 newgrp docker
 ```
 
 ---
 
-## 7. Код серверт оруулах
+## 7. MongoDB суулгах ба тохиргоо
 
-### 7.1 Git clone
+MEDLIVER HIS нь MongoDB-г **Docker container** дотор ажиллуулна. Тусдаа суулгах шаардлагагүй — docker-compose.prod.yml дотор автоматаар татаж тохируулдаг.
+
+Гэхдээ MongoDB Shell (`mongosh`) суулгаж байвал сервер дотроос шууд ажиллах боломжтой.
+
+### 7.1 MongoDB Shell суулгах (сервер дотор ашиглах хэрэгсэл)
+
+```bash
+# MongoDB GPG key нэмэх
+curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | \
+  sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor
+
+# Repository нэмэх
+echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] \
+  https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | \
+  sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+
+# Зөвхөн mongosh суулгах (server daemon биш)
+sudo apt update
+sudo apt install -y mongodb-mongosh
+```
+
+### 7.2 Docker MongoDB container тохиргоо
+
+`docker-compose.prod.yml` дотор MongoDB container дараах байдлаар тодорхойлогдсон:
+
+```yaml
+mongo:
+  image: mongo:7
+  container_name: his-mongo
+  restart: unless-stopped
+  environment:
+    MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+    MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASS}
+    MONGO_INITDB_DATABASE: hospital_his
+  volumes:
+    - mongo_data:/data/db
+    - ./mongo-init.js:/docker-entrypoint-initdb.d/init.js:ro
+  networks:
+    - his-net
+```
+
+**Анхааруулга:** MongoDB порт `27017` гадна нийтэд нээлгүй — зөвхөн Docker дотоод сүлжээнд (`his-net`) нэвтэрч болно.
+
+### 7.3 MongoDB init script үүсгэх
+
+Анх container дэвших үед дараах init script ажилладаг. Файл байхгүй бол үүсгэнэ:
+
+```bash
+cat > /opt/his/mongo-init.js << 'EOF'
+// hospital_his database болон application user үүсгэх
+db = db.getSiblingDB('hospital_his');
+
+db.createUser({
+  user: 'hisapp',
+  pwd: process.env.MONGO_PASS,
+  roles: [
+    { role: 'readWrite', db: 'hospital_his' },
+    { role: 'dbAdmin',   db: 'hospital_his' },
+  ],
+});
+
+// Үндсэн index-үүд
+db.patients.createIndex({ patientCode: 1 }, { unique: true });
+db.patients.createIndex({ registerNumber: 1 });
+db.patients.createIndex({ lastName: 1, firstName: 1 });
+db.visits.createIndex({ patientId: 1, visitDate: -1 });
+db.appointments.createIndex({ scheduledAt: 1, doctorId: 1 });
+
+print('MongoDB initialized successfully');
+EOF
+```
+
+### 7.4 Container ажиллуулсны дараа MongoDB шалгах
+
+```bash
+# Container дотор mongosh ажиллуулах
+docker exec -it his-mongo mongosh \
+  -u $MONGO_USER -p $MONGO_PASS \
+  --authenticationDatabase admin
+
+# Дотор нэвтэрсний дараа:
+show dbs
+use hospital_his
+show collections
+db.stats()
+exit
+```
+
+### 7.5 MongoDB нэмэлт тохиргоо (performance)
+
+Container дотор MongoDB тохиргооны файлд хандах боломжгүй тул performance-г environment variable-аар удирдана. `docker-compose.prod.yml`-д нэмж болно:
+
+```yaml
+mongo:
+  ...
+  command: >
+    mongod
+    --wiredTigerCacheSizeGB 4
+    --oplogSize 512
+    --bind_ip_all
+```
+
+> `wiredTigerCacheSizeGB`: RAM-ийн 50% орчим тавих нь зөв. 16GB RAM → 4-6GB
+
+### 7.6 MongoDB хэмжээ хянах
+
+```bash
+# Database хэмжээ харах
+docker exec -it his-mongo mongosh \
+  -u $MONGO_USER -p $MONGO_PASS --authenticationDatabase admin \
+  --eval "db.getSiblingDB('hospital_his').stats()" | grep -E "dataSize|storageSize|totalSize"
+
+# Collection тус бүрийн мэдээлэл
+docker exec -it his-mongo mongosh \
+  -u $MONGO_USER -p $MONGO_PASS --authenticationDatabase admin \
+  --eval "
+    db = db.getSiblingDB('hospital_his');
+    db.getCollectionNames().forEach(c => {
+      var s = db[c].stats();
+      print(c + ': ' + Math.round(s.size/1024) + 'KB, ' + s.count + ' docs');
+    });
+  "
+```
+
+### 7.7 MongoDB нууц үг өөрчлөх
+
+```bash
+docker exec -it his-mongo mongosh \
+  -u $MONGO_USER -p $MONGO_PASS --authenticationDatabase admin \
+  --eval "
+    db.getSiblingDB('admin').updateUser('$MONGO_USER', {
+      pwd: 'ШИНЭнууцүг123'
+    });
+  "
+
+# .env.prod-д шинэ нууц үгийг заавал шинэчлэх!
+nano /opt/his/.env.prod
+# Дараа нь container дахин эхлүүлэх:
+docker restart his-api
+```
+
+---
+
+## 8. Код серверт оруулах
+
+### 8.1 Git clone
 
 ```bash
 # /opt дотор байршуулна
@@ -177,14 +328,13 @@ sudo mkdir -p /opt/his
 sudo chown deploy:deploy /opt/his
 cd /opt/his
 
-git clone https://github.com/<ТАНЫ_ORG>/hospital-his.git .
-# Эсвэл: git clone https://github.com/<USERNAME>/hospital-his.git .
+git clone https://github.com/yesugdev/new-medliver.git .
 ```
 
 > GitHub-д private repo бол Personal Access Token ашиглана:  
-> `git clone https://<TOKEN>@github.com/<USERNAME>/hospital-his.git .`
+> `git clone https://<TOKEN>@github.com/yesugdev/new-medliver.git .`
 
-### 7.2 Production .env файл үүсгэх
+### 8.2 Production .env файл үүсгэх
 
 ```bash
 cp .env.prod.example .env.prod
@@ -195,7 +345,7 @@ nano .env.prod
 
 ```env
 # Домэйн (www гүй)
-DOMAIN=medliver.mn
+DOMAIN=app.medliver.mn
 
 # MongoDB — аюулгүй нууц үг
 MONGO_USER=hisadmin
@@ -212,40 +362,39 @@ SEED_ADMIN_NAME=Системийн Админ
 
 **Аюулгүй нууц үг үүсгэх туслах команд:**
 ```bash
-# MongoDB нууц үг
+# MongoDB нууц үг (24 тэмдэгт)
 openssl rand -base64 24
 
-# JWT secret
+# JWT secret (48 тэмдэгт)
 openssl rand -base64 48
 ```
 
-### 7.3 Nginx тохиргоо — домэйн солих
+### 8.3 Nginx тохиргоо — домэйн солих
 
 ```bash
-# nginx/default.conf дотор YOURDOMAIN.mn-г өөрийн домэйнаар солих
-sed -i 's/YOURDOMAIN.mn/medliver.mn/g' nginx/default.conf
+# nginx/default.conf дотор YOURDOMAIN.mn-г app.medliver.mn-аар солих
+sed -i 's/YOURDOMAIN.mn/app.medliver.mn/g' nginx/default.conf
 
 # Шалгах
 grep "server_name" nginx/default.conf
-# → server_name medliver.mn www.medliver.mn; гарах ёстой
+# → server_name app.medliver.mn; гарах ёстой
 ```
 
 ---
 
-## 8. SSL сертификат авах
+## 9. SSL сертификат авах
 
 DNS тархсаныг шалгасны дараа SSL авна. Certbot ашиглана.
 
-### 8.1 Certbot суулгах
+### 9.1 Certbot суулгах
 
 ```bash
 sudo apt install -y certbot
 ```
 
-### 8.2 Nginx-г түр HTTP горимд ажиллуулах
+### 9.2 Nginx-г түр HTTP горимд ажиллуулах
 
-SSL авахын өмнө Nginx-г **зөвхөн HTTP** горимд ажиллуулна.  
-`nginx/default.conf`-г түр солих:
+SSL авахын өмнө Nginx-г **зөвхөн HTTP** горимд ажиллуулна.
 
 ```bash
 # Backup хийх
@@ -255,7 +404,7 @@ cp nginx/default.conf nginx/default.conf.bak
 cat > nginx/default.conf << 'EOF'
 server {
     listen 80;
-    server_name medliver.mn www.medliver.mn;
+    server_name app.medliver.mn;
 
     location /.well-known/acme-challenge/ {
         root /var/www/certbot;
@@ -268,7 +417,7 @@ server {
 EOF
 ```
 
-### 8.3 Nginx container ажиллуулах (SSL авах зориулалтаар)
+### 9.3 Nginx container ажиллуулах (SSL авах зориулалтаар)
 
 ```bash
 # Certbot challenge directory үүсгэх
@@ -282,14 +431,12 @@ docker run -d --name tmp-nginx \
   nginx:1.25-alpine
 ```
 
-### 8.4 SSL сертификат авах
+### 9.4 SSL сертификат авах
 
 ```bash
-# medliver.mn-г өөрийн домэйнаар солих
 sudo certbot certonly --webroot \
   -w /var/www/certbot \
-  -d medliver.mn \
-  -d www.medliver.mn \
+  -d app.medliver.mn \
   --email admin@medliver.mn \
   --agree-tos \
   --non-interactive
@@ -298,31 +445,32 @@ sudo certbot certonly --webroot \
 **Амжилттай болбол:**
 ```
 Successfully received certificate.
-Certificate is saved at: /etc/letsencrypt/live/medliver.mn/fullchain.pem
+Certificate is saved at: /etc/letsencrypt/live/app.medliver.mn/fullchain.pem
 ```
 
-### 8.5 Түр Nginx зогсоох
+### 9.5 Түр Nginx зогсоох
 
 ```bash
 docker stop tmp-nginx && docker rm tmp-nginx
 ```
 
-### 8.6 Nginx config-г сэргээх
+### 9.6 Nginx config-г сэргээх
 
 ```bash
 cp nginx/default.conf.bak nginx/default.conf
 ```
 
-### 8.7 SSL автомат шинэчлэл (Cron)
+### 9.7 SSL автомат шинэчлэл (Cron)
 
 ```bash
 # SSL сертификат 90 хоног хүчинтэй, автоматаар шинэчлэх
-echo "0 3 * * 1 certbot renew --quiet && docker exec his-nginx nginx -s reload" | sudo crontab -
+echo "0 3 * * 1 certbot renew --quiet && docker exec his-nginx nginx -s reload" | \
+  sudo crontab -
 ```
 
 ---
 
-## 9. Системийг ажиллуулах
+## 10. Системийг ажиллуулах
 
 ```bash
 cd /opt/his
@@ -353,13 +501,13 @@ curl -I http://localhost:3000
 
 **Гадаас шалгах:**
 ```
-https://medliver.mn        → Нэвтрэх хуудас гарах ёстой
-https://medliver.mn/api    → NestJS API
+https://app.medliver.mn        → Нэвтрэх хуудас гарах ёстой
+https://app.medliver.mn/api    → NestJS API
 ```
 
 ---
 
-## 10. Анхны өгөгдөл (Seed)
+## 11. Анхны өгөгдөл (Seed)
 
 Системийг анх эхлүүлэхэд admin хэрэглэгч үүсгэх хэрэгтэй.
 
@@ -370,23 +518,16 @@ cd /opt/his
 docker exec his-api node apps/api/dist/seed
 ```
 
-**Эсвэл** локал Node.js-ээр ажиллуулах бол:
-```bash
-# Зөвхөн seed хийх зориулалтаар .env.prod-ийг уншуулах
-export $(cat .env.prod | xargs)
-export MONGO_URI="mongodb://${MONGO_USER}:${MONGO_PASS}@localhost:27017/hospital_his?authSource=admin"
-npm run seed
-```
-
 Seed дуусахад `.env.prod`-д заасан email/нууц үгээр нэвтрэх боломжтой болно:
 ```
-И-мэйл:    admin@medliver.mn
-Нууц үг:   <SEED_ADMIN_PASSWORD>
+Хаяг:     https://app.medliver.mn
+И-мэйл:   admin@medliver.mn
+Нууц үг:  <SEED_ADMIN_PASSWORD>
 ```
 
 ---
 
-## 11. Галт хана (Firewall)
+## 12. Галт хана (Firewall)
 
 ```bash
 # UFW идэвхжүүлэх
@@ -417,9 +558,9 @@ sudo ufw status verbose
 
 ---
 
-## 12. Өдөр тутмын Backup
+## 13. Өдөр тутмын Backup
 
-### 12.1 Backup скрипт үүсгэх
+### 13.1 Backup скрипт үүсгэх
 
 ```bash
 sudo nano /opt/backup-his.sh
@@ -453,10 +594,13 @@ docker exec his-mongo mongodump \
 # Container-аас хост руу хуулах
 docker cp his-mongo:/tmp/his-backup-$DATE "$BACKUP_DIR/"
 
+# Container дотор temp файл цэвэрлэх
+docker exec his-mongo rm -rf /tmp/his-backup-$DATE
+
 # Хуучин backup устгах (7 хоногоос өмнөх)
 find "$BACKUP_DIR" -maxdepth 1 -type d -mtime +$KEEP_DAYS -exec rm -rf {} \;
 
-echo "✅ Backup амжилттай: $BACKUP_DIR/his-backup-$DATE"
+echo "Backup амжилттай: $BACKUP_DIR/his-backup-$DATE"
 ```
 
 ```bash
@@ -470,7 +614,7 @@ sudo /opt/backup-his.sh
 ls -la /opt/backups/his/
 ```
 
-### 12.2 Cron-д бүртгэх (өдөр бүр шөнийн 2 цагт)
+### 13.2 Cron-д бүртгэх (өдөр бүр шөнийн 2 цагт)
 
 ```bash
 sudo crontab -e
@@ -481,15 +625,16 @@ sudo crontab -e
 0 2 * * * /opt/backup-his.sh >> /var/log/his-backup.log 2>&1
 ```
 
-### 12.3 Backup-с сэргээх
+### 13.3 Backup-с сэргээх
 
 ```bash
 # Сэргээх шаардлагатай backup-г сонгох
 ls /opt/backups/his/
 
-# MongoDB restore
+# Container руу хуулах
 docker cp /opt/backups/his/his-backup-2025-06-01_02-00 his-mongo:/tmp/restore
 
+# MongoDB restore
 docker exec his-mongo mongorestore \
   --username $MONGO_USER \
   --password $MONGO_PASS \
@@ -497,11 +642,13 @@ docker exec his-mongo mongorestore \
   --db hospital_his \
   /tmp/restore/his-backup-2025-06-01_02-00/hospital_his \
   --drop
+
+echo "Restore дууслаа"
 ```
 
 ---
 
-## 13. Шинэчлэх (Update)
+## 14. Шинэчлэх (Update)
 
 Кодыг шинэчлэх, дахин deploy хийх:
 
@@ -530,7 +677,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
 
 ---
 
-## 14. Алдааг засах (Troubleshooting)
+## 15. Алдааг засах (Troubleshooting)
 
 ### Container ажиллахгүй байна
 
@@ -539,8 +686,8 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
 docker ps -a
 
 # Тодорхой container-ийн лог
-docker logs his-api --tail 100
-docker logs his-web --tail 100
+docker logs his-api   --tail 100
+docker logs his-web   --tail 100
 docker logs his-mongo --tail 50
 docker logs his-nginx --tail 50
 ```
@@ -548,12 +695,30 @@ docker logs his-nginx --tail 50
 ### MongoDB холбогдохгүй байна
 
 ```bash
-# MongoDB ажиллаж байна уу?
+# MongoDB container ажиллаж байна уу?
+docker ps | grep his-mongo
+
+# Ping шалгах
 docker exec -it his-mongo mongosh \
   -u $MONGO_USER -p $MONGO_PASS \
   --authenticationDatabase admin \
   --eval "db.adminCommand({ping:1})"
 # → { ok: 1 } гарах ёстой
+
+# API-ийн MongoDB холболтын алдаа харах
+docker logs his-api --tail 50 | grep -i mongo
+```
+
+### MongoDB replica set эсвэл connection string алдаа
+
+API container-ийн лог-д `MongoServerSelectionError` гарвал:
+
+```bash
+# .env.prod-д MONGO_URI зөв эсэх шалгах
+docker exec his-api env | grep MONGO
+
+# MongoDB container IP харах
+docker inspect his-mongo | grep '"IPAddress"'
 ```
 
 ### SSL сертификат асуудал
@@ -585,6 +750,9 @@ df -h
 # Docker хэрэглэж байгаа зай
 docker system df
 
+# MongoDB data volume хэмжээ
+docker exec his-mongo du -sh /data/db
+
 # Цэвэрлэх (зогссон container, хэрэглэгдэхгүй image)
 docker system prune -a -f
 ```
@@ -610,6 +778,11 @@ docker stats
 
 # Логийг бодит цагаар харах
 docker compose -f docker-compose.prod.yml logs -f --tail 50
+
+# MongoDB холболтын тоо
+docker exec -it his-mongo mongosh \
+  -u $MONGO_USER -p $MONGO_PASS --authenticationDatabase admin \
+  --eval "db.serverStatus().connections"
 ```
 
 ---
@@ -618,11 +791,15 @@ docker compose -f docker-compose.prod.yml logs -f --tail 50
 
 | Хаяг | Зориулалт |
 |---|---|
-| `https://medliver.mn` | Системийн нэвтрэх хуудас |
-| `https://medliver.mn/api` | NestJS REST API |
-| `https://medliver.mn/dashboard` | Хяналтын самбар |
-| `https://medliver.mn/patients` | Өвчтөний жагсаалт |
-| `https://medliver.mn/settings/print` | Хэвлэх загвар тохиргоо |
+| `https://app.medliver.mn` | Системийн нэвтрэх хуудас |
+| `https://app.medliver.mn/api` | NestJS REST API |
+| `https://app.medliver.mn/dashboard` | Хяналтын самбар |
+| `https://app.medliver.mn/patients` | Өвчтөний жагсаалт |
+| `https://app.medliver.mn/queue` | Өдрийн дараалал |
+| `https://app.medliver.mn/appointments` | Цаг захиалга |
+| `https://app.medliver.mn/emr/visit` | Үзлэгийн карт |
+| `https://app.medliver.mn/profile` | Хэрэглэгчийн профайл |
+| `https://app.medliver.mn/settings/print` | Хэвлэх загвар тохиргоо |
 
 ---
 
@@ -639,4 +816,4 @@ docker compose -f docker-compose.prod.yml logs -f --tail 50
 
 ---
 
-*MEDLIVER HIS · Next.js 15 + NestJS 10 + MongoDB 7 · Монгол*
+*MEDLIVER HIS · Next.js 15 + NestJS 10 + MongoDB 7 · `app.medliver.mn`*
