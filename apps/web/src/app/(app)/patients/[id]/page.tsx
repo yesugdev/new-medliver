@@ -1,20 +1,60 @@
 "use client";
 
-import { use } from "react";
+import { use, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Pencil, Phone, Mail, MapPin } from "lucide-react";
+import { ArrowLeft, Loader2, Pencil, Phone, Mail, MapPin, ChevronDown, FlaskConical, FileText, Receipt } from "lucide-react";
 import { GENDER_LABELS_MN } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPatient } from "@/lib/patients-api";
-import { calculateAge, formatDateMn } from "@/lib/utils";
+import { calculateAge, formatDateMn, cn } from "@/lib/utils";
 import { PatientVisits } from "@/components/patient-visits";
 import { PatientInvoices } from "@/components/patient-invoices";
 import { PatientVitals } from "@/components/patient-vitals";
 import { PatientLabOrders } from "@/components/patient-lab-orders";
 import { PatientMedicalHistory } from "@/components/patient-medical-history";
 import { PatientTreatment } from "@/components/patient-treatment";
+
+/* ─── Collapsible section wrapper ───────────────────────────────── */
+function CollapsibleSection({
+  title,
+  icon,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  icon: ReactNode;
+  defaultOpen?: boolean;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="rounded-xl border border-border overflow-hidden shadow-sm">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-3.5 bg-card hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="text-primary">{icon}</span>
+          <span className="text-sm font-semibold">{title}</span>
+        </div>
+        <ChevronDown
+          className={cn(
+            "h-4 w-4 text-muted-foreground transition-transform duration-200",
+            open && "rotate-180",
+          )}
+        />
+      </button>
+      {open && (
+        <div className="border-t border-border [&>div]:rounded-none [&>div]:border-0 [&>div]:shadow-none">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function PatientDetailPage({
   params,
@@ -211,9 +251,26 @@ export default function PatientDetailPage({
 
       <PatientTreatment patientId={patient.id} />
 
-      <PatientLabOrders patientId={patient.id} />
-      <PatientVisits patientId={patient.id} />
-      <PatientInvoices patientId={patient.id} />
+      <CollapsibleSection
+        title="Шинжилгээний түүх"
+        icon={<FlaskConical className="h-4 w-4" />}
+      >
+        <PatientLabOrders patientId={patient.id} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Үзлэгийн түүх"
+        icon={<FileText className="h-4 w-4" />}
+      >
+        <PatientVisits patientId={patient.id} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Нэхэмжлэл"
+        icon={<Receipt className="h-4 w-4" />}
+      >
+        <PatientInvoices patientId={patient.id} />
+      </CollapsibleSection>
 
       <div className="text-xs text-muted-foreground">
         Бүртгэсэн: {formatDateMn(patient.createdAt)} · Шинэчилсэн:{" "}
