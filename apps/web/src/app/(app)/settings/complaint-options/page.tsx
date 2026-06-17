@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Plus, Trash2, Loader2, Stethoscope } from "lucide-react";
 import type { ComplaintOption } from "@his/shared";
+import { ROLES } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AuthGuard } from "@/components/auth-guard";
 import {
   getComplaintOptions,
   createComplaintOption,
@@ -122,6 +124,7 @@ export default function ComplaintOptionsPage() {
   const locations  = options.filter((o) => o.category === "location");
 
   return (
+    <AuthGuard allowedRoles={[ROLES.ADMIN]}>
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-3">
         <Button variant="ghost" size="icon" asChild>
@@ -167,5 +170,6 @@ export default function ComplaintOptionsPage() {
         </div>
       )}
     </div>
+    </AuthGuard>
   );
 }

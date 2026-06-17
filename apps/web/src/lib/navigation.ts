@@ -14,6 +14,7 @@ import {
   Pill,
   Printer,
   ClipboardCheck,
+  Activity,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@his/shared";
@@ -115,6 +116,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/settings/print",
     label: "Хэвлэх загвар",
     icon: Printer,
+    roles: [ROLES.ADMIN],
+  },
+  {
+    href: "/settings/complaint-options",
+    label: "Зовуурийн сонголт",
+    icon: Activity,
     roles: [ROLES.ADMIN],
   },
 ];
