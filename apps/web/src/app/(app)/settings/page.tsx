@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Shield, FileText, ChevronRight } from "lucide-react";
+import { Shield, FileText, ChevronRight, Stethoscope } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SettingsPage() {
@@ -32,6 +32,19 @@ export default function SettingsPage() {
               <div className="text-sm font-medium">EMR загвар тохиргоо</div>
               <div className="text-xs text-muted-foreground mt-0.5">
                 Үзлэгийн картын tab, section, талбаруудыг тохируулах
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </Link>
+          <Link
+            href="/settings/complaint-options"
+            className="flex items-center gap-3 px-6 py-4 hover:bg-muted/40 transition-colors border-b border-border last:border-0"
+          >
+            <Stethoscope className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium">Зовуурийн сонголтууд</div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                Зовуурь, байрлалын dropdown сонголтуудыг нэмэх, хасах
               </div>
             </div>
             <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />

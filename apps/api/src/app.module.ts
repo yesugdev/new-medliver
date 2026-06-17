@@ -17,6 +17,7 @@ import { VitalsModule } from "./modules/vitals/vitals.module";
 import { DrugsModule } from "./modules/drugs/drugs.module";
 import { PrintConfigModule } from "./modules/print-config/print-config.module";
 import { TreatmentTaskModule } from "./modules/treatment-tasks/treatment-task.module";
+import { ComplaintModule } from "./modules/complaints/complaint.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { RolesGuard } from "./common/guards/roles.guard";
 
@@ -49,6 +50,7 @@ import { RolesGuard } from "./common/guards/roles.guard";
     DrugsModule,
     PrintConfigModule,
     TreatmentTaskModule,
+    ComplaintModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
