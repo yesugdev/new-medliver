@@ -38,7 +38,7 @@ function CollapsibleSection({
       >
         <div className="flex items-center gap-2.5">
           <span className="text-primary">{icon}</span>
-          <span className="text-sm font-semibold">{title}</span>
+          <span className="text-base font-semibold">{title}</span>
         </div>
         <ChevronDown
           className={cn(
@@ -252,14 +252,14 @@ export default function PatientDetailPage({
       <PatientTreatment patientId={patient.id} />
 
       <CollapsibleSection
-        title="Шинжилгээний түүх"
+        title="Шинжилгээ"
         icon={<FlaskConical className="h-4 w-4" />}
       >
         <PatientLabOrders patientId={patient.id} />
       </CollapsibleSection>
 
       <CollapsibleSection
-        title="Үзлэгийн түүх"
+        title="Үзлэг"
         icon={<FileText className="h-4 w-4" />}
       >
         <PatientVisits patientId={patient.id} />
