@@ -19,6 +19,7 @@ import { PrintConfigModule } from "./modules/print-config/print-config.module";
 import { TreatmentTaskModule } from "./modules/treatment-tasks/treatment-task.module";
 import { ComplaintModule } from "./modules/complaints/complaint.module";
 import { DiagnosesModule } from "./modules/diagnoses/diagnoses.module";
+import { InstrumentalExamsModule } from "./modules/instrumental-exams/instrumental-exams.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { RolesGuard } from "./common/guards/roles.guard";
 
@@ -53,6 +54,7 @@ import { RolesGuard } from "./common/guards/roles.guard";
     TreatmentTaskModule,
     ComplaintModule,
     DiagnosesModule,
+    InstrumentalExamsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

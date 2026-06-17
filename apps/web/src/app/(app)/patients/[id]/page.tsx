@@ -17,6 +17,7 @@ import { PatientMedicalHistory } from "@/components/patient-medical-history";
 import { PatientTreatment } from "@/components/patient-treatment";
 import { PatientComplaints } from "@/components/patient-complaints";
 import { PatientDiagnoses } from "@/components/patient-diagnoses";
+import { PatientInstrumentalExams } from "@/components/patient-instrumental-exams";
 
 /* ─── Collapsible section wrapper ───────────────────────────────── */
 function CollapsibleSection({
@@ -266,6 +267,13 @@ export default function PatientDetailPage({
       <PatientMedicalHistory patientId={patient.id} />
 
       <PatientTreatment patientId={patient.id} />
+
+      <CollapsibleSection
+        title="Багажийн шинжилгээ"
+        icon={<FlaskConical className="h-4 w-4" />}
+      >
+        <PatientInstrumentalExams patientId={patient.id} />
+      </CollapsibleSection>
 
       <CollapsibleSection
         title="Шинжилгээ"
