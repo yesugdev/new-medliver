@@ -17,6 +17,8 @@ export class HospitalConfigService {
       name:          doc.name,
       logoBase64:    doc.logoBase64,
       faviconBase64: doc.faviconBase64,
+      vatEnabled:    doc.vatEnabled ?? false,
+      vatRate:       doc.vatRate ?? 10,
       updatedAt:     (doc as any).updatedAt?.toISOString?.() ?? new Date().toISOString(),
     };
   }

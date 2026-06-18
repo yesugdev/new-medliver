@@ -13,6 +13,12 @@ export class HospitalConfigEntity {
 
   @Prop({ type: String })
   faviconBase64?: string;
+
+  @Prop({ type: Boolean, default: false })
+  vatEnabled!: boolean;
+
+  @Prop({ type: Number, default: 10 })
+  vatRate!: number;
 }
 
 export const HospitalConfigSchema = SchemaFactory.createForClass(HospitalConfigEntity);

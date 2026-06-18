@@ -23,12 +23,16 @@ export default function HospitalSettingsPage() {
   const [name,          setName]          = useState("MEDLIVER");
   const [logoBase64,    setLogoBase64]    = useState("");
   const [faviconBase64, setFaviconBase64] = useState("");
+  const [vatEnabled,    setVatEnabled]    = useState(false);
+  const [vatRate,       setVatRate]       = useState("10");
 
   useEffect(() => {
     if (!saved) return;
     setName(saved.name ?? "MEDLIVER");
     setLogoBase64(saved.logoBase64 ?? "");
     setFaviconBase64(saved.faviconBase64 ?? "");
+    setVatEnabled(saved.vatEnabled ?? false);
+    setVatRate(String(saved.vatRate ?? 10));
   }, [saved]);
 
   const logoRef    = useRef<HTMLInputElement>(null);
@@ -60,6 +64,8 @@ export default function HospitalSettingsPage() {
         name:          name || undefined,
         logoBase64:    logoBase64    || undefined,
         faviconBase64: faviconBase64 || undefined,
+        vatEnabled,
+        vatRate:       Number(vatRate) || 0,
       }),
     onSuccess: () => {
       toast({ title: "Эмнэлгийн мэдээлэл хадгалагдлаа", variant: "success" });
@@ -224,6 +230,42 @@ export default function HospitalSettingsPage() {
               />
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* НӨАТ / Төлбөр */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Төлбөр / НӨАТ</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium">НӨАТ тооцоолох</div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Нэхэмжлэлд НӨАТ автоматаар нэмэгдэнэ
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setVatEnabled((v) => !v)}
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${vatEnabled ? "bg-primary" : "bg-muted-foreground/30"}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${vatEnabled ? "translate-x-6" : "translate-x-1"}`} />
+            </button>
+          </div>
+          {vatEnabled && (
+            <div className="space-y-1.5 max-w-[160px]">
+              <Label>НӨАТ хувь (%)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={vatRate}
+                onChange={(e) => setVatRate(e.target.value)}
+              />
+            </div>
+          )}
         </CardContent>
       </Card>
 

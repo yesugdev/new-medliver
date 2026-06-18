@@ -14,6 +14,7 @@ import {
 export class InvoiceItemInputDto {
   @IsOptional() @IsMongoId() serviceId?: string;
   @IsString() name!: string;
+  @IsOptional() @IsString() category?: string;
   @IsNumber() @Min(0.01) quantity!: number;
   @IsNumber() @Min(0) unitPrice!: number;
 }
@@ -36,6 +37,11 @@ export class CreateInvoiceDto {
   @IsNumber()
   @Min(0)
   discount?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  vatRate?: number;
 }
 
 export class RecordPaymentDto {

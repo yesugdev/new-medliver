@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
 import {
-  IsBoolean, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength,
+  IsBoolean, IsNumber, IsOptional, IsString, MaxLength, Min, MinLength, IsDateString,
 } from "class-validator";
 
 export class CreateDrugDto {
@@ -16,9 +16,19 @@ export class CreateDrugDto {
   @IsString() @MinLength(1) @MaxLength(50)
   unit!: string;
 
+  @IsOptional() @IsString() @MaxLength(100)
+  category?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  manufacturer?: string;
+
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
+  salePrice?: number;
+
+  @IsOptional()
   @Type(() => Number)
   @IsNumber() @Min(0)
-  stock!: number;
+  stock?: number;
 
   @IsOptional()
   @Type(() => Number)
@@ -43,8 +53,14 @@ export class UpdateDrugDto {
   @IsOptional() @IsString() @MinLength(1) @MaxLength(50)
   unit?: string;
 
+  @IsOptional() @IsString() @MaxLength(100)
+  category?: string;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  manufacturer?: string;
+
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
-  stock?: number;
+  salePrice?: number;
 
   @IsOptional() @Type(() => Number) @IsNumber() @Min(0)
   minStock?: number;
@@ -60,4 +76,21 @@ export class AdjustStockDto {
   @Type(() => Number)
   @IsNumber()
   delta!: number;
+}
+
+export class CreateBatchDto {
+  @IsString() @MinLength(1) @MaxLength(100)
+  batchNumber!: string;
+
+  @IsDateString()
+  expiryDate!: string;
+
+  @Type(() => Number) @IsNumber() @Min(1)
+  quantity!: number;
+
+  @Type(() => Number) @IsNumber() @Min(0)
+  costPrice!: number;
+
+  @IsOptional() @IsDateString()
+  receivedAt?: string;
 }

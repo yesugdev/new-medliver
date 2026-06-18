@@ -83,6 +83,7 @@ function printInvoice(
         <tbody>
           <tr><td style="padding:4px 10px;color:#64748b;font-size:12px">Дэд дүн</td><td style="padding:4px 10px;text-align:right">${formatMnt(inv.subtotal)}</td></tr>
           ${inv.discount > 0 ? `<tr><td style="padding:4px 10px;color:#64748b;font-size:12px">Хөнгөлөлт</td><td style="padding:4px 10px;text-align:right;color:#e53e3e">−${formatMnt(inv.discount)}</td></tr>` : ""}
+          ${inv.vat > 0 ? `<tr><td style="padding:4px 10px;color:#64748b;font-size:12px">НӨАТ (${inv.vatRate}%)</td><td style="padding:4px 10px;text-align:right">${formatMnt(inv.vat)}</td></tr>` : ""}
           <tr style="border-top:2px solid #000"><td style="padding:8px 10px;font-weight:700">Нийт дүн</td><td style="padding:8px 10px;text-align:right;font-weight:700;font-size:15px">${formatMnt(inv.total)}</td></tr>
           <tr><td style="padding:4px 10px;color:#16a34a;font-size:12px">Төлсөн</td><td style="padding:4px 10px;text-align:right;color:#16a34a">${formatMnt(inv.paid)}</td></tr>
           <tr style="background:${inv.balance > 0 ? "#fff7ed" : "#f0fdf4"}">
@@ -242,6 +243,7 @@ export default function InvoiceDetailPage({
               <tfoot>
                 <tr><td colSpan={3} className="text-right text-muted-foreground">Дэд дүн</td><td className="text-right">{formatMnt(inv.subtotal)}</td></tr>
                 {inv.discount > 0 && <tr><td colSpan={3} className="text-right text-muted-foreground">Хөнгөлөлт</td><td className="text-right">−{formatMnt(inv.discount)}</td></tr>}
+                {inv.vat > 0 && <tr><td colSpan={3} className="text-right text-muted-foreground">НӨАТ ({inv.vatRate}%)</td><td className="text-right">{formatMnt(inv.vat)}</td></tr>}
                 <tr><td colSpan={3} className="text-right font-semibold">Нийт дүн</td><td className="text-right font-semibold">{formatMnt(inv.total)}</td></tr>
                 <tr><td colSpan={3} className="text-right text-emerald-700">Төлсөн</td><td className="text-right text-emerald-700">{formatMnt(inv.paid)}</td></tr>
                 <tr><td colSpan={3} className="text-right font-semibold">Үлдэгдэл</td><td className="text-right font-semibold">{formatMnt(inv.balance)}</td></tr>

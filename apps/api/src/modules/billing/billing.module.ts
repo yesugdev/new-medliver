@@ -6,6 +6,7 @@ import { Patient, PatientSchema } from "../patients/patient.schema";
 import { ServicesService } from "./services.service";
 import { InvoicesService } from "./invoices.service";
 import { ServicesController, InvoicesController } from "./billing.controller";
+import { DrugsModule } from "../drugs/drugs.module";
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { ServicesController, InvoicesController } from "./billing.controller";
       { name: Invoice.name, schema: InvoiceSchema },
       { name: Patient.name, schema: PatientSchema },
     ]),
+    DrugsModule,
   ],
   controllers: [ServicesController, InvoicesController],
   providers: [ServicesService, InvoicesService],

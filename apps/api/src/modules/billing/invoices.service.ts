@@ -5,11 +5,18 @@ import {
 } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types, FilterQuery } from "mongoose";
-import type { AuthUser, Invoice as SharedInvoice } from "@his/shared";
+import type { AuthUser, Invoice as SharedInvoice, ServiceCategory } from "@his/shared";
 import { Invoice, InvoiceDocument } from "./invoice.schema";
 import { Patient, PatientDocument } from "../patients/patient.schema";
 import { CreateInvoiceDto, RecordPaymentDto } from "./dto/invoice.dto";
 import { AuditService } from "../audit/audit.service";
+import { DrugsService } from "../drugs/drugs.service";
+
+export interface TreatmentInvoiceItem {
+  name: string;
+  quantity: number;
+  unitPrice: number;
+}
 
 @Injectable()
 export class InvoicesService {
@@ -17,7 +24,16 @@ export class InvoicesService {
     @InjectModel(Invoice.name) private readonly model: Model<InvoiceDocument>,
     @InjectModel(Patient.name) private readonly patientModel: Model<PatientDocument>,
     private readonly audit: AuditService,
+    private readonly drugsService: DrugsService,
   ) {}
+
+  /** subtotal − discount дээр НӨАТ тооцоолно */
+  private computeTotals(subtotal: number, discount: number, vatRate: number) {
+    const taxable = Math.max(0, subtotal - discount);
+    const vat = vatRate > 0 ? Math.round(taxable * (vatRate / 100)) : 0;
+    const total = taxable + vat;
+    return { vat, total };
+  }
 
   private async toShared(doc: InvoiceDocument): Promise<SharedInvoice> {
     const patient = await this.patientModel.findById(doc.patientId).lean();
@@ -32,12 +48,15 @@ export class InvoicesService {
         serviceId: i.serviceId?.toString(),
         code: i.code,
         name: i.name,
+        category: i.category as ServiceCategory | undefined,
         quantity: i.quantity,
         unitPrice: i.unitPrice,
         total: i.total,
       })),
       subtotal: doc.subtotal,
       discount: doc.discount,
+      vat: doc.vat ?? 0,
+      vatRate: doc.vatRate ?? 0,
       total: doc.total,
       paid: doc.paid,
       balance: doc.balance,
@@ -71,13 +90,15 @@ export class InvoicesService {
     const items = dto.items.map((i) => ({
       serviceId: i.serviceId ? new Types.ObjectId(i.serviceId) : undefined,
       name: i.name,
+      category: i.category,
       quantity: i.quantity,
       unitPrice: i.unitPrice,
       total: Math.round(i.quantity * i.unitPrice),
     }));
     const subtotal = items.reduce((s, i) => s + i.total, 0);
     const discount = dto.discount ?? 0;
-    const total = Math.max(0, subtotal - discount);
+    const vatRate = dto.vatRate ?? 0;
+    const { vat, total } = this.computeTotals(subtotal, discount, vatRate);
 
     const invoiceNumber = await this.generateInvoiceNumber();
     const created = await this.model.create({
@@ -87,6 +108,8 @@ export class InvoicesService {
       items,
       subtotal,
       discount,
+      vat,
+      vatRate,
       total,
       paid: 0,
       balance: total,
@@ -103,6 +126,59 @@ export class InvoicesService {
       resource: "invoice",
       resourceId: created._id.toString(),
       meta: { invoiceNumber, total },
+    });
+
+    return this.toShared(created);
+  }
+
+  /** Эмчилгээ (жор)-оос автомат нэхэмжлэл үүсгэх — эмийн line items + НӨАТ */
+  async createFromTreatment(params: {
+    patientId: string;
+    visitId?: string;
+    treatmentId: string;
+    items: TreatmentInvoiceItem[];
+    vatRate: number;
+    actor: AuthUser;
+  }): Promise<SharedInvoice> {
+    const { patientId, visitId, treatmentId, vatRate, actor } = params;
+    const items = params.items.map((i) => ({
+      name: i.name,
+      category: "medication" as ServiceCategory,
+      quantity: i.quantity,
+      unitPrice: i.unitPrice,
+      total: Math.round(i.quantity * i.unitPrice),
+    }));
+    const subtotal = items.reduce((s, i) => s + i.total, 0);
+    const discount = 0;
+    const { vat, total } = this.computeTotals(subtotal, discount, vatRate);
+
+    const invoiceNumber = await this.generateInvoiceNumber();
+    const created = await this.model.create({
+      invoiceNumber,
+      patientId: new Types.ObjectId(patientId),
+      visitId: visitId ? new Types.ObjectId(visitId) : undefined,
+      sourceTreatmentId: new Types.ObjectId(treatmentId),
+      items,
+      subtotal,
+      discount,
+      vat,
+      vatRate,
+      total,
+      paid: 0,
+      balance: total,
+      status: "issued",
+      payments: [],
+      issuedAt: new Date(),
+      createdBy: actor.id,
+    });
+
+    await this.audit.record({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invoice.create_from_treatment",
+      resource: "invoice",
+      resourceId: created._id.toString(),
+      meta: { invoiceNumber, total, treatmentId },
     });
 
     return this.toShared(created);
@@ -178,6 +254,14 @@ export class InvoicesService {
     if (!doc) throw new NotFoundException("Нэхэмжлэл олдсонгүй");
     doc.status = "cancelled";
     await doc.save();
+
+    // Эмчилгээнээс үүссэн нэхэмжлэл бол хасагдсан эмийн нөөцийг буцаана
+    if (doc.sourceTreatmentId) {
+      await this.drugsService
+        .reverseFEFO(doc.sourceTreatmentId.toString(), { id: actor.id, name: actor.fullName })
+        .catch(() => {});
+    }
+
     await this.audit.record({
       actorId: actor.id,
       actorEmail: actor.email,

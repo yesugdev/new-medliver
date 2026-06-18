@@ -12,6 +12,7 @@ export class InvoiceLineItem {
   @Prop({ type: Types.ObjectId, ref: "ServiceItem" }) serviceId?: Types.ObjectId;
   @Prop({ type: String }) code?: string;
   @Prop({ type: String, required: true }) name!: string;
+  @Prop({ type: String }) category?: string;
   @Prop({ type: Number, required: true, min: 0 }) quantity!: number;
   @Prop({ type: Number, required: true, min: 0 }) unitPrice!: number;
   @Prop({ type: Number, required: true, min: 0 }) total!: number;
@@ -44,11 +45,16 @@ export class Invoice {
   @Prop({ type: Types.ObjectId, ref: "Visit", index: true })
   visitId?: Types.ObjectId;
 
+  @Prop({ type: Types.ObjectId, ref: "Treatment", index: true })
+  sourceTreatmentId?: Types.ObjectId;
+
   @Prop({ type: [LineItemSchema], required: true })
   items!: InvoiceLineItem[];
 
   @Prop({ type: Number, required: true, min: 0 }) subtotal!: number;
   @Prop({ type: Number, default: 0, min: 0 }) discount!: number;
+  @Prop({ type: Number, default: 0, min: 0 }) vat!: number;
+  @Prop({ type: Number, default: 0, min: 0 }) vatRate!: number;
   @Prop({ type: Number, required: true, min: 0 }) total!: number;
   @Prop({ type: Number, default: 0, min: 0 }) paid!: number;
   @Prop({ type: Number, required: true }) balance!: number;

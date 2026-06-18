@@ -7,6 +7,8 @@ import { Patient, PatientDocument } from "./patient.schema";
 import { CreateTreatmentDto } from "./dto/create-treatment.dto";
 import { DrugsService } from "../drugs/drugs.service";
 import { TreatmentTaskService } from "../treatment-tasks/treatment-task.service";
+import { InvoicesService } from "../billing/invoices.service";
+import { HospitalConfigService } from "../hospital-config/hospital-config.service";
 
 @Injectable()
 export class TreatmentService {
@@ -17,6 +19,8 @@ export class TreatmentService {
     private readonly patientModel: Model<PatientDocument>,
     private readonly drugsService: DrugsService,
     private readonly taskService: TreatmentTaskService,
+    private readonly invoicesService: InvoicesService,
+    private readonly hospitalConfig: HospitalConfigService,
   ) {}
 
   private toShared(doc: TreatmentDocument): TreatmentRecord {
@@ -35,6 +39,8 @@ export class TreatmentService {
       })),
       recordedById:   doc.recordedById.toString(),
       recordedByName: doc.recordedByName,
+      invoiceId:      doc.invoiceId?.toString(),
+      invoiceNumber:  doc.invoiceNumber,
       createdAt: (doc as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
     };
   }
@@ -51,10 +57,47 @@ export class TreatmentService {
       recordedByName: actor.fullName ?? actor.email,
     });
 
-    // Deduct stock for inventory drugs
+    // FEFO-гоор нөөц хасах + нэхэмжлэлийн мөр бэлдэх (зөвхөн агуулахын эм)
+    const invoiceItems: Array<{ name: string; quantity: number; unitPrice: number }> = [];
     for (const drug of dto.drugs) {
       if (drug.drugId && drug.totalQuantity && drug.totalQuantity > 0) {
-        await this.drugsService.deductStock(drug.drugId, drug.totalQuantity).catch(() => {});
+        await this.drugsService
+          .deductFEFO(drug.drugId, drug.totalQuantity, {
+            refType: "treatment",
+            refId:   doc._id.toString(),
+            reason:  "Эмчилгээ (жор)",
+            actor:   { id: actor.id, name: actor.fullName ?? actor.email },
+          })
+          .catch(() => {});
+
+        const inv = await this.drugsService.getById(drug.drugId).catch(() => null);
+        if (inv && inv.salePrice > 0) {
+          invoiceItems.push({
+            name:      drug.nameFormDosage,
+            quantity:  drug.totalQuantity,
+            unitPrice: inv.salePrice,
+          });
+        }
+      }
+    }
+
+    // Үнэтэй эм байвал автомат нэхэмжлэл үүсгэх (НӨАТ-тай)
+    if (invoiceItems.length > 0) {
+      const cfg = await this.hospitalConfig.get().catch(() => null);
+      const vatRate = cfg?.vatEnabled ? cfg.vatRate : 0;
+      try {
+        const invoice = await this.invoicesService.createFromTreatment({
+          patientId,
+          treatmentId: doc._id.toString(),
+          items:       invoiceItems,
+          vatRate,
+          actor,
+        });
+        doc.invoiceId = new Types.ObjectId(invoice.id);
+        doc.invoiceNumber = invoice.invoiceNumber;
+        await doc.save();
+      } catch {
+        // нэхэмжлэл амжилтгүй ч эмчилгээний бүртгэл хэвээр үлдэнэ
       }
     }
 

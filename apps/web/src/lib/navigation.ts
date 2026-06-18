@@ -15,6 +15,7 @@ import {
   Printer,
   ClipboardCheck,
   Activity,
+  BarChart3,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@his/shared";
@@ -86,7 +87,13 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/drugs",
     label: "Эм бүртгэл",
     icon: Pill,
-    roles: [ROLES.ADMIN],
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION],
+  },
+  {
+    href: "/drugs/reports",
+    label: "Эмийн тайлан",
+    icon: BarChart3,
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION],
   },
   {
     href: "/users",

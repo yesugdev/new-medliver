@@ -9,6 +9,8 @@ import { TreatmentService } from "./treatment.service";
 import { PatientsController } from "./patients.controller";
 import { DrugsModule } from "../drugs/drugs.module";
 import { TreatmentTaskModule } from "../treatment-tasks/treatment-task.module";
+import { BillingModule } from "../billing/billing.module";
+import { HospitalConfigModule } from "../hospital-config/hospital-config.module";
 
 @Module({
   imports: [
@@ -19,6 +21,8 @@ import { TreatmentTaskModule } from "../treatment-tasks/treatment-task.module";
     ]),
     DrugsModule,
     TreatmentTaskModule,
+    BillingModule,
+    HospitalConfigModule,
   ],
   controllers: [PatientsController],
   providers: [PatientsService, MedicalHistoryService, TreatmentService],

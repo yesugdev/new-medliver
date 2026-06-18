@@ -17,6 +17,15 @@ export class DrugEntity {
   @Prop({ type: String, required: true, trim: true })
   unit!: string;
 
+  @Prop({ type: String, trim: true, index: true })
+  category?: string;
+
+  @Prop({ type: String, trim: true })
+  manufacturer?: string;
+
+  @Prop({ type: Number, default: 0, min: 0 })
+  salePrice!: number;
+
   @Prop({ type: Number, required: true, default: 0 })
   stock!: number;
 

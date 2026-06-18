@@ -38,6 +38,12 @@ export class Treatment {
 
   @Prop({ type: String, required: true })
   recordedByName!: string;
+
+  @Prop({ type: Types.ObjectId, ref: "Invoice" })
+  invoiceId?: Types.ObjectId;
+
+  @Prop({ type: String })
+  invoiceNumber?: string;
 }
 
 export const TreatmentSchema = SchemaFactory.createForClass(Treatment);

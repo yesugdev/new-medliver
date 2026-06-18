@@ -54,6 +54,7 @@ export interface InvoiceLineItem {
   serviceId?: string;
   code?: string;
   name: string;
+  category?: ServiceCategory;
   quantity: number;
   unitPrice: number;
   total: number;
@@ -77,6 +78,8 @@ export interface Invoice {
   items: InvoiceLineItem[];
   subtotal: number;
   discount: number;
+  vat: number;
+  vatRate: number;
   total: number;
   paid: number;
   balance: number;
@@ -90,8 +93,15 @@ export interface Invoice {
 export interface CreateInvoiceInput {
   patientId: string;
   visitId?: string;
-  items: Array<{ serviceId?: string; name: string; quantity: number; unitPrice: number }>;
+  items: Array<{
+    serviceId?: string;
+    name: string;
+    category?: ServiceCategory;
+    quantity: number;
+    unitPrice: number;
+  }>;
   discount?: number;
+  vatRate?: number;
 }
 
 export interface RecordPaymentInput {

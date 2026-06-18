@@ -45,6 +45,9 @@ export interface TreatmentRecord {
   drugs: TreatmentDrug[];
   recordedById: string;
   recordedByName: string;
+  /** Автоматаар үүссэн нэхэмжлэл */
+  invoiceId?: string;
+  invoiceNumber?: string;
   createdAt: string;
 }
 

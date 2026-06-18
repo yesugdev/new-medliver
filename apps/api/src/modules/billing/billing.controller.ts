@@ -37,19 +37,19 @@ export class ServicesController {
   }
 
   @Post()
-  @Roles(ROLES.ADMIN, ROLES.MANAGER)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION)
   create(@Body() dto: CreateServiceDto) {
     return this.services.create(dto);
   }
 
   @Patch(":id")
-  @Roles(ROLES.ADMIN, ROLES.MANAGER)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION)
   update(@Param("id") id: string, @Body() dto: UpdateServiceDto) {
     return this.services.update(id, dto);
   }
 
   @Delete(":id")
-  @Roles(ROLES.ADMIN)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION)
   async remove(@Param("id") id: string) {
     await this.services.remove(id);
     return { success: true };

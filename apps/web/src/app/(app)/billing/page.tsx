@@ -48,7 +48,7 @@ export default function BillingPage() {
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / pageSize)) : 1;
   const canCreate = user && (user.role === "admin" || user.role === "reception");
-  const canManageServices = user && (user.role === "admin" || user.role === "manager");
+  const canManageServices = user && (user.role === "admin" || user.role === "manager" || user.role === "reception");
 
   return (
     <div className="space-y-6">

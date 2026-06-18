@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ChevronDown, ChevronUp, Plus, Trash2,
-  Loader2, Pill, CalendarDays, User, Printer, List, PenLine, Hospital,
+  Loader2, Pill, CalendarDays, User, Printer, List, PenLine, Hospital, Receipt,
 } from "lucide-react";
 import { DRUG_ROUTES } from "@his/shared";
 import type { TreatmentDrug, TreatmentRecord } from "@his/shared";
@@ -16,6 +17,7 @@ import { useAuthStore } from "@/stores/auth-store";
 import { createTreatment, deleteTreatment, listTreatments } from "@/lib/treatment-api";
 import { listDrugs } from "@/lib/drugs-api";
 import { getPrintConfig } from "@/lib/print-config-api";
+import { getHospitalConfig } from "@/lib/hospital-config-api";
 import { openPrintWindow } from "@/lib/print-utils";
 import { extractApiError } from "@/lib/api";
 import { formatDateTimeMn, cn } from "@/lib/utils";
@@ -143,7 +145,7 @@ function DrugRow({
                 ))}
               </select>
               {selectedDrug && (
-                <div className={`text-xs px-2 py-1 rounded flex items-center gap-1 ${
+                <div className={`text-xs px-2 py-1 rounded flex items-center gap-1.5 flex-wrap ${
                   selectedDrug.stock <= 0
                     ? "bg-rose-50 text-rose-700"
                     : selectedDrug.stock <= selectedDrug.minStock
@@ -152,6 +154,14 @@ function DrugRow({
                 }`}>
                   <Pill className="h-3 w-3" />
                   Нөөц: {selectedDrug.stock} {selectedDrug.unit}
+                  {selectedDrug.salePrice > 0 && (
+                    <span className="opacity-80">· Үнэ: {selectedDrug.salePrice.toLocaleString("mn-MN")}₮</span>
+                  )}
+                  {selectedDrug.salePrice > 0 && drug.totalQuantity ? (
+                    <span className="font-semibold">
+                      · Дүн: {(selectedDrug.salePrice * drug.totalQuantity).toLocaleString("mn-MN")}₮
+                    </span>
+                  ) : null}
                 </div>
               )}
             </div>
@@ -277,6 +287,24 @@ function AddTreatmentForm({
     staleTime: 60_000,
   });
 
+  const { data: hospitalConfig } = useQuery({
+    queryKey: ["hospital-config"],
+    queryFn:  getHospitalConfig,
+    staleTime: 5 * 60_000,
+  });
+
+  /* Үнэтэй (агуулахын) эмийн төлбөрийн урьдчилсан тооцоо */
+  const subtotal = drugs.reduce((sum, d) => {
+    if (!d.drugId || !d.totalQuantity) return sum;
+    const inv = inventoryDrugs.find((x) => x.id === d.drugId);
+    if (!inv || inv.salePrice <= 0) return sum;
+    return sum + inv.salePrice * d.totalQuantity;
+  }, 0);
+  const vatRate = hospitalConfig?.vatEnabled ? hospitalConfig.vatRate : 0;
+  const vat   = vatRate > 0 ? Math.round(subtotal * (vatRate / 100)) : 0;
+  const total = subtotal + vat;
+  const money = (n: number) => n.toLocaleString("mn-MN");
+
   const updateDrug  = (i: number, d: TreatmentDrug) =>
     setDrugs((prev) => prev.map((x, j) => (j === i ? d : x)));
   const updateMode  = (i: number, m: DrugMode) =>
@@ -296,13 +324,17 @@ function AddTreatmentForm({
       if (valid.length === 0) throw new Error("Эмийн нэр оруулна уу");
       return createTreatment(patientId, { drugs: valid, addToTasks });
     },
-    onSuccess: () => {
+    onSuccess: (record) => {
       toast({
         title: "Эмчилгээ хадгалагдлаа",
-        description: addToTasks ? "Эмчилгээний To-Do жагсаалтад нэмэгдлээ" : undefined,
+        description: record.invoiceNumber
+          ? `Нэхэмжлэл үүслээ: ${record.invoiceNumber}`
+          : addToTasks ? "Эмчилгээний To-Do жагсаалтад нэмэгдлээ" : undefined,
         variant: "success",
       });
       qc.invalidateQueries({ queryKey: ["treatments", patientId] });
+      qc.invalidateQueries({ queryKey: ["drugs-active"] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
       if (addToTasks) qc.invalidateQueries({ queryKey: ["treatment-tasks"] });
       setDrugs([emptyDrug()]);
       setAddToTasks(false);
@@ -383,6 +415,33 @@ function AddTreatmentForm({
           )} />
         </div>
       </button>
+
+      {/* Төлбөрийн урьдчилсан тооцоо — зөвхөн үнэтэй агуулахын эм байвал */}
+      {subtotal > 0 && (
+        <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 space-y-1.5">
+          <div className="flex items-center gap-2 text-sm font-semibold">
+            <Receipt className="h-4 w-4 text-primary" />
+            Төлбөрийн урьдчилсан тооцоо
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-muted-foreground">Дүн</span>
+            <span>{money(subtotal)}₮</span>
+          </div>
+          {vatRate > 0 && (
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">НӨАТ ({vatRate}%)</span>
+              <span>{money(vat)}₮</span>
+            </div>
+          )}
+          <div className="flex justify-between text-sm font-bold border-t border-border pt-1.5">
+            <span>Нийт төлбөр</span>
+            <span>{money(total)}₮</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground pt-0.5">
+            Хадгалахад нэхэмжлэл автоматаар үүсч, нөөц хасагдана.
+          </p>
+        </div>
+      )}
 
       {/* Save */}
       <div className="flex justify-end pt-1">
@@ -536,15 +595,25 @@ function TreatmentCard({
           </div>
 
           <div className="flex items-center justify-between px-4 py-3 border-t border-border/50">
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-8 gap-1.5"
-              onClick={() => printTreatment(record, printConfig)}
-            >
-              <Printer className="h-3.5 w-3.5" />
-              Хэвлэх
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 gap-1.5"
+                onClick={() => printTreatment(record, printConfig)}
+              >
+                <Printer className="h-3.5 w-3.5" />
+                Хэвлэх
+              </Button>
+              {record.invoiceId && (
+                <Link href={`/billing/${record.invoiceId}`}>
+                  <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                    <Receipt className="h-3.5 w-3.5" />
+                    {record.invoiceNumber ?? "Нэхэмжлэл"}
+                  </Button>
+                </Link>
+              )}
+            </div>
 
             {canDelete && (
               <Button

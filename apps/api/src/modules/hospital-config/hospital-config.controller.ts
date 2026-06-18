@@ -3,12 +3,15 @@ import { ROLES } from "@his/shared";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { Public } from "../../common/decorators/public.decorator";
 import { HospitalConfigService } from "./hospital-config.service";
-import { IsOptional, IsString, MaxLength } from "class-validator";
+import { IsBoolean, IsNumber, IsOptional, IsString, Max, MaxLength, Min } from "class-validator";
+import { Type } from "class-transformer";
 
 class UpdateHospitalConfigDto {
   @IsOptional() @IsString() @MaxLength(100) name?: string;
   @IsOptional() @IsString() logoBase64?: string;
   @IsOptional() @IsString() faviconBase64?: string;
+  @IsOptional() @IsBoolean() vatEnabled?: boolean;
+  @IsOptional() @Type(() => Number) @IsNumber() @Min(0) @Max(100) vatRate?: number;
 }
 
 @Controller("hospital-config")
