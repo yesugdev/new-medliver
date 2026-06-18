@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Camera, Check, Eye, EyeOff, KeyRound, Loader2, Mail,
@@ -26,28 +26,32 @@ const ROLE_TONE: Record<string, string> = {
   reception: "bg-amber-100 text-amber-800",
 };
 
-/* ─── Avatar upload ──────────────────────────────────────────────── */
+/* ─── Avatar upload — auto-saves on file select ──────────────────── */
 function AvatarUpload({
   current,
   initials,
+  saving,
   onSelect,
 }: {
   current?: string;
   initials: string;
+  saving: boolean;
   onSelect: (base64: string) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | undefined>(current);
+  const { toast } = useToast();
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) return; // 5MB cap
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Зураг 5MB-аас бага байх ёстой", variant: "destructive" });
+      e.target.value = "";
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (ev) => {
-      const b64 = ev.target?.result as string;
-      setPreview(b64);
-      onSelect(b64);
+      onSelect(ev.target?.result as string);
     };
     reader.readAsDataURL(file);
   }
@@ -55,22 +59,30 @@ function AvatarUpload({
   return (
     <div className="relative w-fit">
       <div
-        onClick={() => fileRef.current?.click()}
+        onClick={() => !saving && fileRef.current?.click()}
         className="h-24 w-24 rounded-full overflow-hidden bg-primary/10 border-2 border-border cursor-pointer hover:opacity-80 transition-opacity flex items-center justify-center"
       >
-        {preview ? (
-          <img src={preview} alt="avatar" className="h-full w-full object-cover" />
+        {current ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={current} alt="avatar" className="h-full w-full object-cover" />
         ) : (
           <span className="text-3xl font-bold text-primary select-none">{initials}</span>
         )}
       </div>
+
+      {/* Camera / loading badge */}
       <button
         type="button"
-        onClick={() => fileRef.current?.click()}
-        className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-primary text-white flex items-center justify-center shadow border-2 border-white hover:bg-primary/90 transition-colors"
+        onClick={() => !saving && fileRef.current?.click()}
+        disabled={saving}
+        className="absolute bottom-0 right-0 h-7 w-7 rounded-full bg-primary text-white flex items-center justify-center shadow border-2 border-white hover:bg-primary/90 transition-colors disabled:opacity-60"
       >
-        <Camera className="h-3.5 w-3.5" />
+        {saving
+          ? <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          : <Camera className="h-3.5 w-3.5" />
+        }
       </button>
+
       <input
         ref={fileRef}
         type="file"
@@ -89,40 +101,37 @@ export default function ProfilePage() {
   const authUser = useAuthStore((s) => s.user);
   const setUser  = useAuthStore((s) => s.setUser);
 
-  /* Profile data */
   const { data: profile, isLoading } = useQuery({
     queryKey: ["me"],
     queryFn: getMe,
   });
 
-  /* Info form state */
   const [fullName,   setFullName]   = useState("");
   const [phone,      setPhone]      = useState("");
-  const [avatarB64,  setAvatarB64]  = useState<string | undefined>();
-  const [infoReady,  setInfoReady]  = useState(false);
 
-  /* Populate once */
-  if (profile && !infoReady) {
+  useEffect(() => {
+    if (!profile) return;
     setFullName(profile.fullName);
     setPhone(profile.phone ?? "");
-    setAvatarB64(profile.avatar);
-    setInfoReady(true);
-  }
+  }, [profile]);
 
-  /* Password form state */
-  const [curPwd,     setCurPwd]     = useState("");
-  const [newPwd,     setNewPwd]     = useState("");
-  const [confirmPwd, setConfirmPwd] = useState("");
-  const [showCur,    setShowCur]    = useState(false);
-  const [showNew,    setShowNew]    = useState(false);
+  /* ── Avatar auto-save mutation ───────────────────────────────── */
+  const avatarMut = useMutation({
+    mutationFn: (base64: string) => updateMe({ avatar: base64 }),
+    onSuccess: (updated) => {
+      qc.setQueryData(["me"], updated);
+      toast({ title: "Зураг хадгалагдлаа", variant: "success" });
+    },
+    onError: (err) =>
+      toast({ title: "Зураг хадгалахад алдаа гарлаа", description: extractApiError(err), variant: "destructive" }),
+  });
 
-  /* Save profile mutation */
+  /* ── Profile info save mutation ──────────────────────────────── */
   const saveInfo = useMutation({
     mutationFn: () =>
       updateMe({
-        fullName:  fullName.trim() || undefined,
-        phone:     phone.trim()    || undefined,
-        avatar:    avatarB64,
+        fullName: fullName.trim() || undefined,
+        phone:    phone.trim()    || undefined,
       }),
     onSuccess: (updated) => {
       qc.setQueryData(["me"], updated);
@@ -133,7 +142,13 @@ export default function ProfilePage() {
       toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" }),
   });
 
-  /* Change password mutation */
+  /* ── Password change mutation ────────────────────────────────── */
+  const [curPwd,     setCurPwd]     = useState("");
+  const [newPwd,     setNewPwd]     = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [showCur,    setShowCur]    = useState(false);
+  const [showNew,    setShowNew]    = useState(false);
+
   const changePwd = useMutation({
     mutationFn: () =>
       changeMyPassword({ currentPassword: curPwd, newPassword: newPwd }),
@@ -145,9 +160,7 @@ export default function ProfilePage() {
       toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" }),
   });
 
-  const initials = profile
-    ? (profile.fullName[0] ?? "?").toUpperCase()
-    : (authUser?.fullName[0] ?? "?").toUpperCase();
+  const initials = (profile?.fullName[0] ?? authUser?.fullName[0] ?? "?").toUpperCase();
 
   const pwdOk =
     curPwd.length >= 6 &&
@@ -174,11 +187,17 @@ export default function ProfilePage() {
         <CardContent className="space-y-6">
           {/* Avatar + role row */}
           <div className="flex items-center gap-5">
-            <AvatarUpload
-              current={profile?.avatar}
-              initials={initials}
-              onSelect={setAvatarB64}
-            />
+            <div className="space-y-1 text-center">
+              <AvatarUpload
+                current={profile?.avatar}
+                initials={initials}
+                saving={avatarMut.isPending}
+                onSelect={(b64) => avatarMut.mutate(b64)}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                {avatarMut.isPending ? "Хадгалж байна..." : "Зургийг дарж солих"}
+              </p>
+            </div>
             <div className="space-y-1">
               <div className="text-lg font-semibold">{profile?.fullName}</div>
               <div className="text-sm text-muted-foreground">{profile?.email}</div>
@@ -220,7 +239,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Meta info */}
           {profile?.lastLoginAt && (
             <div className="text-xs text-muted-foreground border-t pt-3">
               Сүүлд нэвтэрсэн: {formatDateTimeMn(profile.lastLoginAt)}
@@ -252,7 +270,6 @@ export default function ProfilePage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Current password */}
           <div className="space-y-1.5">
             <Label>Одоогийн нууц үг</Label>
             <div className="relative">
@@ -273,7 +290,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* New password */}
           <div className="space-y-1.5">
             <Label>Шинэ нууц үг</Label>
             <div className="relative">
@@ -294,7 +310,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Confirm */}
           <div className="space-y-1.5">
             <Label>Нууц үг давтах</Label>
             <div className="relative">
@@ -314,7 +329,6 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* Strength hint */}
           <div className="flex items-center gap-1.5">
             {[6, 8, 12].map((len, i) => (
               <div
