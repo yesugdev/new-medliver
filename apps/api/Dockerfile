@@ -10,7 +10,8 @@ COPY apps/api/package.json           ./apps/api/
 RUN npm ci --ignore-scripts
 
 COPY packages/shared ./packages/shared
-RUN npm run build:shared
+# Build shared types, then rebuild native addons (bcrypt etc.) skipped by --ignore-scripts
+RUN npm run build:shared && npm rebuild
 
 COPY apps/api ./apps/api
 RUN npm --workspace apps/api run build
