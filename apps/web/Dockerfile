@@ -29,10 +29,12 @@ COPY package.json package-lock.json ./
 COPY packages/shared/package.json   ./packages/shared/
 COPY apps/web/package.json          ./apps/web/
 
-RUN npm ci --omit=dev
+# --ignore-scripts: skip postinstall (which would try to run tsc, a devDep)
+RUN npm ci --omit=dev --ignore-scripts
 
+# Copy shared source + pre-built dist from builder (no need to rerun tsc)
 COPY packages/shared               ./packages/shared
-RUN npm run build:shared
+COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 
 COPY --from=builder /app/apps/web/.next  ./apps/web/.next
 COPY --from=builder /app/apps/web/public ./apps/web/public
