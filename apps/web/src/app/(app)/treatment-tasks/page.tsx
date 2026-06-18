@@ -136,7 +136,7 @@ function TaskCard({ task, canDelete }: { task: TreatmentTask; canDelete: boolean
             <div className="text-xs text-emerald-700 mt-1 flex items-center gap-1">
               <User className="h-3 w-3" />
               {task.doneByName} — {fmtTime(task.doneAt)}
-              {task.doneNote && <span className="ml-1 italic">"{task.doneNote}"</span>}
+              {task.doneNote && <span className="ml-1 italic">&ldquo;{task.doneNote}&rdquo;</span>}
             </div>
           )}
 
