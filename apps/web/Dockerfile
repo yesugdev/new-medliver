@@ -9,7 +9,8 @@ COPY package.json package-lock.json ./
 COPY packages/shared/package.json   ./packages/shared/
 COPY apps/web/package.json          ./apps/web/
 
-RUN npm ci
+# --ignore-scripts: source not copied yet, skip postinstall; build shared manually after
+RUN npm ci --ignore-scripts
 
 COPY packages/shared ./packages/shared
 RUN npm run build:shared
