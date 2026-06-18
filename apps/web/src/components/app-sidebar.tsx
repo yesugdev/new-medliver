@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import type { Role } from "@his/shared";
 import { filterNavForRole } from "@/lib/navigation";
+import { getHospitalConfig } from "@/lib/hospital-config-api";
 import { cn } from "@/lib/utils";
 
 export function AppSidebar({
@@ -17,7 +20,31 @@ export function AppSidebar({
   onToggle: () => void;
 }) {
   const pathname = usePathname();
-  const items = filterNavForRole(role);
+  const items    = filterNavForRole(role);
+
+  const { data: branding } = useQuery({
+    queryKey: ["hospital-config"],
+    queryFn: getHospitalConfig,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  const hospitalName = branding?.name || "MEDLIVER";
+  const logoSrc      = branding?.logoBase64;
+  const faviconSrc   = branding?.faviconBase64;
+
+  useEffect(() => {
+    if (!faviconSrc) return;
+    const link = document.querySelector<HTMLLinkElement>("link[rel~='icon']");
+    if (link) {
+      link.href = faviconSrc;
+    } else {
+      const el = document.createElement("link");
+      el.rel = "icon";
+      el.href = faviconSrc;
+      document.head.appendChild(el);
+    }
+  }, [faviconSrc]);
 
   return (
     <aside
@@ -30,20 +57,40 @@ export function AppSidebar({
       {/* ── Logo header ──────────────────────────────── */}
       <div className="h-16 flex items-center border-b border-border px-3 gap-2 relative overflow-visible">
         {/* Logo icon — always visible */}
-        <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
-          <Activity className="h-5 w-5" />
-        </div>
+        {logoSrc ? (
+          collapsed ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoSrc}
+              alt={hospitalName}
+              className="h-8 w-8 object-contain rounded shrink-0"
+            />
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={logoSrc}
+              alt={hospitalName}
+              className="h-9 max-w-[140px] object-contain shrink-0"
+            />
+          )
+        ) : (
+          <div className="h-9 w-9 rounded-lg bg-primary text-primary-foreground flex items-center justify-center shrink-0">
+            <Activity className="h-5 w-5" />
+          </div>
+        )}
 
-        {/* Brand text — hidden when collapsed */}
-        <div
-          className={cn(
-            "flex flex-col leading-tight overflow-hidden transition-all duration-300",
-            collapsed ? "w-0 opacity-0" : "w-full opacity-100",
-          )}
-        >
-          <span className="text-sm font-bold tracking-wide whitespace-nowrap">MEDLIVER</span>
-          <span className="text-[11px] text-muted-foreground whitespace-nowrap">Эмнэлгийн систем</span>
-        </div>
+        {/* Brand text — hidden when collapsed or when logo is shown */}
+        {!logoSrc && (
+          <div
+            className={cn(
+              "flex flex-col leading-tight overflow-hidden transition-all duration-300",
+              collapsed ? "w-0 opacity-0" : "w-full opacity-100",
+            )}
+          >
+            <span className="text-sm font-bold tracking-wide whitespace-nowrap">{hospitalName}</span>
+            <span className="text-[11px] text-muted-foreground whitespace-nowrap">Эмнэлгийн систем</span>
+          </div>
+        )}
 
         {/* ── Floating toggle button ── */}
         <button
@@ -127,7 +174,7 @@ export function AppSidebar({
         {collapsed ? (
           <span className="font-mono text-[10px]">v0.1</span>
         ) : (
-          <span className="whitespace-nowrap">MEDLIVER · v0.1.0</span>
+          <span className="whitespace-nowrap">{hospitalName} · v0.1.0</span>
         )}
       </div>
     </aside>

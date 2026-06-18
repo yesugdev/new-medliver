@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Shield, FileText, ChevronRight, Stethoscope } from "lucide-react";
+import { Shield, FileText, ChevronRight, Stethoscope, Building2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function SettingsPage() {
@@ -23,6 +23,19 @@ export default function SettingsPage() {
           <CardTitle>Тохиргоо</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
+          <Link
+            href="/settings/hospital"
+            className="flex items-center gap-3 px-6 py-4 hover:bg-muted/40 transition-colors border-b border-border last:border-0"
+          >
+            <Building2 className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium">Эмнэлгийн брэнд</div>
+              <div className="text-xs text-muted-foreground mt-0.5">
+                Нэр, лого, favicon тохируулах
+              </div>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+          </Link>
           <Link
             href="/settings/emr-template"
             className="flex items-center gap-3 px-6 py-4 hover:bg-muted/40 transition-colors border-b border-border last:border-0"
@@ -70,7 +83,6 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent>
           <ul className="text-sm space-y-1.5 text-muted-foreground list-disc list-inside">
-            <li>Эмнэлгийн нэр, лого, хаяг, утасны мэдээлэл (settings collection)</li>
             <li>Multi-branch дэмжлэг</li>
             <li>SMS gateway тохиргоо</li>
             <li>Laboratory, Pharmacy интеграцийн endpoint-ууд</li>

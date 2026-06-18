@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Activity, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,7 @@ import { useToast } from "@/components/ui/toast";
 import { useAuthStore } from "@/stores/auth-store";
 import { loginRequest } from "@/lib/auth-api";
 import { extractApiError } from "@/lib/api";
+import { getHospitalConfig } from "@/lib/hospital-config-api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,6 +22,13 @@ export default function LoginPage() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const { data: branding } = useQuery({
+    queryKey: ["hospital-config"],
+    queryFn: getHospitalConfig,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
 
   useEffect(() => {
     if (existingUser) router.replace("/dashboard");
@@ -42,18 +50,34 @@ export default function LoginPage() {
     },
   });
 
+  const hospitalName = branding?.name || "MEDLIVER";
+  const logoSrc      = branding?.logoBase64;
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-sky-50 via-white to-slate-50 p-4">
       <div className="w-full max-w-md">
-        <div className="flex items-center justify-center mb-8 gap-2">
-          <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
-            <Activity className="h-5 w-5" />
-          </div>
-          <div>
-            <div className="text-xl font-bold tracking-wide">MEDLIVER</div>
-            <div className="text-xs text-muted-foreground">Эмнэлгийн мэдээллийн систем</div>
-          </div>
+        {/* Branding */}
+        <div className="flex items-center justify-center mb-8 gap-3">
+          {logoSrc ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={logoSrc} alt={hospitalName} className="h-12 max-w-[180px] object-contain" />
+          ) : (
+            <>
+              <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
+                <Activity className="h-5 w-5" />
+              </div>
+              <div>
+                <div className="text-xl font-bold tracking-wide">{hospitalName}</div>
+                <div className="text-xs text-muted-foreground">Эмнэлгийн мэдээллийн систем</div>
+              </div>
+            </>
+          )}
         </div>
+        {logoSrc && (
+          <p className="text-center text-sm text-muted-foreground -mt-4 mb-6">
+            Эмнэлгийн мэдээллийн систем
+          </p>
+        )}
 
         <Card>
           <CardHeader>
@@ -106,7 +130,7 @@ export default function LoginPage() {
         </Card>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
-          © {new Date().getFullYear()} MEDLIVER · Эмнэлгийн мэдээллийн систем
+          © {new Date().getFullYear()} {hospitalName} · Эмнэлгийн мэдээллийн систем
         </p>
       </div>
     </div>
