@@ -10,7 +10,9 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"src/**/*.ts\" --fix",
     "seed": "ts-node -r tsconfig-paths/register src/seed.ts",
-    "seed:lab": "ts-node -r tsconfig-paths/register src/seed-lab.ts"
+    "seed:lab": "ts-node -r tsconfig-paths/register src/seed-lab.ts",
+    "seed:emr-template": "ts-node -r tsconfig-paths/register src/seed-emr-template.ts",
+    "seed:physical-exam": "ts-node -r tsconfig-paths/register src/seed-physical-exam.ts"
   },
   "dependencies": {
     "@his/shared": "*",
