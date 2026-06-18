@@ -21,14 +21,15 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-COPY package.json package-lock.json ./
+# Copy node_modules from builder so native addons (bcrypt) are pre-compiled
+# for the same node:20-alpine environment — no npm install needed here.
+COPY --from=builder /app/node_modules ./node_modules
+
+COPY package.json ./
 COPY packages/shared/package.json    ./packages/shared/
 COPY apps/api/package.json           ./apps/api/
 
-# --ignore-scripts: skip postinstall (which would try to run tsc, a devDep)
-RUN npm ci --omit=dev --ignore-scripts
-
-# Copy shared source + pre-built dist from builder (no need to rerun tsc)
+# Copy shared source + pre-built dist
 COPY packages/shared ./packages/shared
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 
