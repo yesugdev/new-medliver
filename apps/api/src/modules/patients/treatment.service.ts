@@ -61,21 +61,21 @@ export class TreatmentService {
     const invoiceItems: Array<{ name: string; quantity: number; unitPrice: number }> = [];
     for (const drug of dto.drugs) {
       if (drug.drugId && drug.totalQuantity && drug.totalQuantity > 0) {
-        await this.drugsService
+        const res = await this.drugsService
           .deductFEFO(drug.drugId, drug.totalQuantity, {
             refType: "treatment",
             refId:   doc._id.toString(),
             reason:  "Эмчилгээ (жор)",
             actor:   { id: actor.id, name: actor.fullName ?? actor.email },
           })
-          .catch(() => {});
+          .catch(() => null);
 
-        const inv = await this.drugsService.getById(drug.drugId).catch(() => null);
-        if (inv && inv.salePrice > 0) {
+        // Бодит FEFO цувралын зарах үнээр нэхэмжлэлийн мөр үүсгэх
+        if (res && res.deducted > 0 && res.totalSale > 0) {
           invoiceItems.push({
             name:      drug.nameFormDosage,
-            quantity:  drug.totalQuantity,
-            unitPrice: inv.salePrice,
+            quantity:  res.deducted,
+            unitPrice: Math.round(res.totalSale / res.deducted),
           });
         }
       }

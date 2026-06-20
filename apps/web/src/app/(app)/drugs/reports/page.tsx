@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import {
-  ArrowLeft, BarChart3, Loader2, Wallet, AlertTriangle, CalendarClock, CalendarX2,
+  ArrowLeft, BarChart3, Loader2, Wallet, AlertTriangle, CalendarClock, CalendarX2, Boxes,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -51,6 +51,61 @@ export default function DrugReportsPage() {
           <div className="text-xl font-bold mt-1 text-rose-600">{data.expired.length}</div>
         </CardContent></Card>
       </div>
+
+      {/* Агуулахын дэлгэрэнгүй — Эм → Цуврал */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Boxes className="h-4 w-4 text-primary" />Агуулахын дэлгэрэнгүй ({data.inventory.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0">
+          {data.inventory.length === 0 ? (
+            <div className="text-center py-6 text-sm text-muted-foreground">Нөөцтэй эм алга.</div>
+          ) : (
+            <div className="divide-y divide-border">
+              {data.inventory.map((d) => {
+                const now = Date.now();
+                return (
+                  <div key={d.drugId} className="px-4 py-3">
+                    {/* Drug Master толгой */}
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        {d.code && <span className="font-mono text-[11px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground shrink-0">{d.code}</span>}
+                        <Link href={`/drugs/${d.drugId}`} className="font-semibold text-primary hover:underline truncate">
+                          {d.name} {d.dosage}
+                        </Link>
+                        <span className="text-xs text-muted-foreground shrink-0">{d.form}</span>
+                      </div>
+                      <span className="text-sm font-semibold shrink-0">{d.stock} {d.unit}</span>
+                    </div>
+                    {/* Inventory batches */}
+                    <ul className="mt-2 space-y-1 pl-1">
+                      {d.batches.map((b) => {
+                        const exp = new Date(b.expiryDate).getTime();
+                        const isExpired = exp <= now;
+                        const isSoon = !isExpired && exp <= now + 30 * 86400000;
+                        return (
+                          <li key={b.id} className="flex items-center gap-2 text-sm">
+                            <span className="text-muted-foreground">•</span>
+                            <span className="font-mono text-xs">{b.batchNumber}</span>
+                            <span className="text-muted-foreground">
+                              ({b.quantity} {d.unit}, {dateStr(b.expiryDate)})
+                            </span>
+                            {isExpired && <Badge tone="destructive">Дууссан</Badge>}
+                            {isSoon && <Badge tone="warning">Удахгүй</Badge>}
+                            {b.supplier && <span className="text-xs text-muted-foreground">· {b.supplier}</span>}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Low stock */}
       <Card>

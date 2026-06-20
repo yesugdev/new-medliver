@@ -42,6 +42,7 @@ export class DrugsService {
   private toShared(doc: DrugDocument): Drug {
     return {
       id:           doc._id.toString(),
+      code:         doc.code,
       name:         doc.name,
       form:         doc.form,
       dosage:       doc.dosage,
@@ -58,15 +59,18 @@ export class DrugsService {
     };
   }
 
-  private batchToShared(doc: DrugBatchDocument): DrugBatch {
+  private batchToShared(doc: DrugBatchDocument, drugName?: string): DrugBatch {
     return {
       id:              doc._id.toString(),
       drugId:          doc.drugId.toString(),
+      drugName,
       batchNumber:     doc.batchNumber,
       expiryDate:      doc.expiryDate.toISOString(),
       quantity:        doc.quantity,
       initialQuantity: doc.initialQuantity,
       costPrice:       doc.costPrice,
+      salePrice:       doc.salePrice ?? 0,
+      supplier:        doc.supplier,
       receivedAt:      doc.receivedAt.toISOString(),
       createdAt:       (doc as any).createdAt?.toISOString?.() ?? new Date().toISOString(),
     };
@@ -103,6 +107,7 @@ export class DrugsService {
 
   async create(dto: CreateDrugDto, actor?: MovementActor): Promise<Drug> {
     const doc = await this.model.create({
+      code:         dto.code,
       name:         dto.name,
       form:         dto.form,
       dosage:       dto.dosage,
@@ -163,7 +168,15 @@ export class DrugsService {
       { $group: { _id: null, total: { $sum: "$quantity" } } },
     ]);
     const total = agg[0]?.total ?? 0;
-    await this.model.updateOne({ _id: drugId }, { $set: { stock: total } });
+
+    // Одоогийн зарах үнэ = FEFO (эхэлж дуусах, нөөцтэй) цувралын зарах үнэ
+    const current = await this.batchModel
+      .findOne({ drugId: new Types.ObjectId(drugId), quantity: { $gt: 0 } })
+      .sort({ expiryDate: 1 })
+      .lean();
+    const salePrice = current?.salePrice ?? 0;
+
+    await this.model.updateOne({ _id: drugId }, { $set: { stock: total, salePrice } });
   }
 
   /** Орлого — шинэ цуврал нэмэх */
@@ -178,6 +191,8 @@ export class DrugsService {
       quantity:        dto.quantity,
       initialQuantity: dto.quantity,
       costPrice:       dto.costPrice,
+      salePrice:       dto.salePrice ?? 0,
+      supplier:        dto.supplier,
       receivedAt:      dto.receivedAt ? new Date(dto.receivedAt) : new Date(),
     });
     await this.movementModel.create({
@@ -218,8 +233,8 @@ export class DrugsService {
     drugId: string,
     qty: number,
     opts: DeductOptions = {},
-  ): Promise<{ deducted: number; totalCost: number }> {
-    if (!qty || qty <= 0) return { deducted: 0, totalCost: 0 };
+  ): Promise<{ deducted: number; totalCost: number; totalSale: number }> {
+    if (!qty || qty <= 0) return { deducted: 0, totalCost: 0, totalSale: 0 };
     const movementType: StockMovementType = opts.movementType ?? "out";
 
     const batches = await this.batchModel
@@ -229,6 +244,7 @@ export class DrugsService {
 
     let remaining = qty;
     let totalCost = 0;
+    let totalSale = 0;
     for (const batch of batches) {
       if (remaining <= 0) break;
       const take = Math.min(batch.quantity, remaining);
@@ -236,6 +252,7 @@ export class DrugsService {
       await batch.save();
       remaining -= take;
       totalCost += take * batch.costPrice;
+      totalSale += take * (batch.salePrice ?? 0);
       await this.movementModel.create({
         drugId:        new Types.ObjectId(drugId),
         batchId:       batch._id,
@@ -249,7 +266,7 @@ export class DrugsService {
       });
     }
     await this.recomputeStock(drugId);
-    return { deducted: qty - remaining, totalCost };
+    return { deducted: qty - remaining, totalCost, totalSale };
   }
 
   /** Нэхэмжлэл цуцлах үед refId-аар хасагдсан нөөцийг буцаах */
@@ -358,11 +375,15 @@ export class DrugsService {
 
     const totalValuation = Array.from(valByDrug.values()).reduce((s, v) => s + v, 0);
 
+    const nameByDrug = new Map<string, string>(
+      drugs.map((d) => [d._id.toString(), d.name]),
+    );
+
     const now = new Date();
     const soon = new Date();
     soon.setDate(soon.getDate() + 30);
 
-    const [expiringDocs, expiredDocs] = await Promise.all([
+    const [expiringDocs, expiredDocs, allBatches] = await Promise.all([
       this.batchModel
         .find({ quantity: { $gt: 0 }, expiryDate: { $gt: now, $lte: soon } })
         .sort({ expiryDate: 1 })
@@ -371,14 +392,41 @@ export class DrugsService {
         .find({ quantity: { $gt: 0 }, expiryDate: { $lte: now } })
         .sort({ expiryDate: 1 })
         .exec(),
+      this.batchModel
+        .find({ quantity: { $gt: 0 } })
+        .sort({ expiryDate: 1 })
+        .exec(),
     ]);
+
+    // Эм → түүний нөөцийн цувралууд (Drug Master + Inventory Batches)
+    const batchesByDrug = new Map<string, DrugBatch[]>();
+    for (const b of allBatches) {
+      const key = b.drugId.toString();
+      const list = batchesByDrug.get(key) ?? [];
+      list.push(this.batchToShared(b, nameByDrug.get(key)));
+      batchesByDrug.set(key, list);
+    }
+    const inventory = drugs
+      .filter((d) => batchesByDrug.has(d._id.toString()))
+      .map((d) => ({
+        drugId: d._id.toString(),
+        code:   d.code,
+        name:   d.name,
+        dosage: d.dosage,
+        form:   d.form,
+        unit:   d.unit,
+        stock:  d.stock,
+        batches: batchesByDrug.get(d._id.toString()) ?? [],
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, "mn"));
 
     return {
       totalValuation,
       totalDrugs: drugs.length,
       lowStock,
-      expiringSoon: expiringDocs.map((b) => this.batchToShared(b)),
-      expired:      expiredDocs.map((b) => this.batchToShared(b)),
+      expiringSoon: expiringDocs.map((b) => this.batchToShared(b, nameByDrug.get(b.drugId.toString()))),
+      expired:      expiredDocs.map((b) => this.batchToShared(b, nameByDrug.get(b.drugId.toString()))),
+      inventory,
     };
   }
 }

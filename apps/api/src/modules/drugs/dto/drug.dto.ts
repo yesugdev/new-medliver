@@ -4,6 +4,9 @@ import {
 } from "class-validator";
 
 export class CreateDrugDto {
+  @IsOptional() @IsString() @MaxLength(50)
+  code?: string;
+
   @IsString() @MinLength(1) @MaxLength(200)
   name!: string;
 
@@ -41,6 +44,9 @@ export class CreateDrugDto {
 }
 
 export class UpdateDrugDto {
+  @IsOptional() @IsString() @MaxLength(50)
+  code?: string;
+
   @IsOptional() @IsString() @MinLength(1) @MaxLength(200)
   name?: string;
 
@@ -90,6 +96,12 @@ export class CreateBatchDto {
 
   @Type(() => Number) @IsNumber() @Min(0)
   costPrice!: number;
+
+  @Type(() => Number) @IsNumber() @Min(0)
+  salePrice!: number;
+
+  @IsOptional() @IsString() @MaxLength(200)
+  supplier?: string;
 
   @IsOptional() @IsDateString()
   receivedAt?: string;

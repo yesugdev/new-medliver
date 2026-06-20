@@ -5,6 +5,9 @@ export type DrugDocument = HydratedDocument<DrugEntity>;
 
 @Schema({ timestamps: true, collection: "drugs" })
 export class DrugEntity {
+  @Prop({ type: String, trim: true, index: true })
+  code?: string;
+
   @Prop({ type: String, required: true, trim: true, index: true })
   name!: string;
 

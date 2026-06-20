@@ -5,10 +5,11 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Pill, Plus, Pencil, Trash2, Loader2, AlertTriangle, X, Check,
-  Boxes, CalendarX2, BarChart3, ChevronRight,
+  Boxes, CalendarX2, BarChart3, ChevronRight, SlidersHorizontal,
 } from "lucide-react";
 import type { Drug, CreateDrugInput } from "@his/shared";
 import { DRUG_CATEGORIES } from "@his/shared";
+import { getDrugOptions } from "@/lib/drug-options-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,33 +26,41 @@ function DrugPanel({ drug, onClose }: { drug: Drug | null; onClose: () => void }
   const qc = useQueryClient();
   const { toast } = useToast();
 
+  const [code,         setCode]         = useState(drug?.code ?? "");
   const [name,         setName]         = useState(drug?.name ?? "");
   const [form,         setForm]         = useState(drug?.form ?? "");
   const [dosage,       setDosage]       = useState(drug?.dosage ?? "");
   const [unit,         setUnit]         = useState(drug?.unit ?? "");
   const [category,     setCategory]     = useState(drug?.category ?? "");
   const [manufacturer, setManufacturer] = useState(drug?.manufacturer ?? "");
-  const [salePrice,    setSalePrice]    = useState(String(drug?.salePrice ?? 0));
-  const [stock,        setStock]        = useState("0");
   const [minStock,     setMinStock]     = useState(String(drug?.minStock ?? 0));
   const [description,  setDescription]  = useState(drug?.description ?? "");
   const [isActive,     setIsActive]     = useState(drug?.isActive ?? true);
 
   const isEdit = !!drug;
 
+  const { data: drugOptions = [] } = useQuery({
+    queryKey: ["drug-options"],
+    queryFn: getDrugOptions,
+    staleTime: 5 * 60_000,
+  });
+  const manufacturerOptions = drugOptions.filter((o) => o.type === "manufacturer").map((o) => o.name);
+  const categoryNames       = drugOptions.filter((o) => o.type === "category").map((o) => o.name);
+  const categoryOptions     = categoryNames.length > 0 ? categoryNames : [...DRUG_CATEGORIES];
+
   const saveMut = useMutation({
     mutationFn: () => {
       const base = {
+        code: code || undefined,
         name, form, dosage, unit,
         category:     category || undefined,
         manufacturer: manufacturer || undefined,
-        salePrice:    Number(salePrice),
         minStock:     Number(minStock),
         description:  description || undefined,
       };
       return isEdit
         ? updateDrug(drug.id, { ...base, isActive })
-        : createDrug({ ...base, stock: Number(stock) } as CreateDrugInput);
+        : createDrug(base as CreateDrugInput);
     },
     onSuccess: () => {
       toast({ title: isEdit ? "Шинэчиллээ" : "Эм бүртгэгдлээ", variant: "success" });
@@ -79,9 +88,15 @@ function DrugPanel({ drug, onClose }: { drug: Drug | null; onClose: () => void }
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
-          <div className="space-y-1.5">
-            <Label>Эмийн нэр <span className="text-destructive">*</span></Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="жш: Амоксициллин" />
+          <div className="grid grid-cols-[120px_1fr] gap-3">
+            <div className="space-y-1.5">
+              <Label>Эмийн код</Label>
+              <Input value={code} onChange={(e) => setCode(e.target.value)} placeholder="PCT500" className="font-mono" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Эмийн нэр <span className="text-destructive">*</span></Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="жш: Амоксициллин" />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -106,31 +121,30 @@ function DrugPanel({ drug, onClose }: { drug: Drug | null; onClose: () => void }
                 className="h-9 w-full rounded-md border border-input bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
               >
                 <option value="">— Сонгох —</option>
-                {DRUG_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {categoryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label>Үйлдвэрлэгч</Label>
-            <Input value={manufacturer} onChange={(e) => setManufacturer(e.target.value)} placeholder="Үйлдвэрлэгч компани..." />
+            <Label>Үйлдвэрлэгч <span className="text-xs text-muted-foreground">(сонгох эсвэл бичих)</span></Label>
+            <Input
+              list="drug-manufacturers"
+              value={manufacturer}
+              onChange={(e) => setManufacturer(e.target.value)}
+              placeholder="Үйлдвэрлэгч компани..."
+            />
+            <datalist id="drug-manufacturers">
+              {manufacturerOptions.map((m) => <option key={m} value={m} />)}
+            </datalist>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label>Зарах нэгж үнэ (₮)</Label>
-              <Input type="number" min={0} value={salePrice} onChange={(e) => setSalePrice(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Доод хэмжээ <span className="text-xs text-muted-foreground">(анхааруулга)</span></Label>
-              <Input type="number" min={0} value={minStock} onChange={(e) => setMinStock(e.target.value)} />
-            </div>
+          <div className="space-y-1.5">
+            <Label>Анхааруулга өгөх доод хэмжээ</Label>
+            <Input type="number" min={0} value={minStock} onChange={(e) => setMinStock(e.target.value)} />
           </div>
 
-          {!isEdit && (
-            <div className="space-y-1.5">
-              <Label>Анхны нөөц <span className="text-xs text-muted-foreground">(дараа цувралаар нэмж болно)</span></Label>
-              <Input type="number" min={0} value={stock} onChange={(e) => setStock(e.target.value)} />
-            </div>
-          )}
+          <div className="rounded-lg border border-dashed border-border bg-muted/20 px-3 py-2.5 text-xs text-muted-foreground">
+            Зарах үнэ болон нөөцийг <span className="font-medium text-foreground">цувралын орлогоор</span> нэмнэ — эмийг хадгалсны дараа дэлгэрэнгүй хуудаснаас «Орлого нэмэх».
+          </div>
 
           <div className="space-y-1.5">
             <Label>Тайлбар</Label>
@@ -178,6 +192,14 @@ export default function DrugsPage() {
     queryFn:  () => listExpiring(30),
   });
 
+  const { data: drugOptions = [] } = useQuery({
+    queryKey: ["drug-options"],
+    queryFn:  getDrugOptions,
+    staleTime: 5 * 60_000,
+  });
+  const catNames = drugOptions.filter((o) => o.type === "category").map((o) => o.name);
+  const filterCategories = catNames.length > 0 ? catNames : [...DRUG_CATEGORIES];
+
   const deleteMut = useMutation({
     mutationFn: (id: string) => deleteDrug(id),
     onSuccess: () => {
@@ -220,6 +242,9 @@ export default function DrugsPage() {
           <p className="text-sm text-muted-foreground mt-1">Эмийн нөөц, цуврал, үнэ удирдах</p>
         </div>
         <div className="flex gap-2">
+          <Link href="/settings/drug-options">
+            <Button variant="outline"><SlidersHorizontal className="h-4 w-4" />Сонголт</Button>
+          </Link>
           <Link href="/drugs/reports">
             <Button variant="outline"><BarChart3 className="h-4 w-4" />Тайлан</Button>
           </Link>
@@ -268,7 +293,7 @@ export default function DrugsPage() {
               className="h-9 rounded-md border border-input bg-background px-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             >
               <option value="">Бүх ангилал</option>
-              {DRUG_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              {filterCategories.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
             <Input placeholder="Хайх..." value={search} onChange={(e) => setSearch(e.target.value)} className="w-56" />
           </div>
@@ -285,6 +310,7 @@ export default function DrugsPage() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
+                    <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Код</th>
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Эмийн нэр</th>
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Ангилал</th>
                     <th className="text-left px-4 py-2.5 text-xs font-medium text-muted-foreground">Тун</th>
@@ -300,6 +326,7 @@ export default function DrugsPage() {
                     const isEmpty = d.stock <= 0;
                     return (
                       <tr key={d.id} className="border-b border-border last:border-0 hover:bg-muted/20">
+                        <td className="px-4 py-3 font-mono text-xs text-muted-foreground">{d.code || "—"}</td>
                         <td className="px-4 py-3">
                           <Link href={`/drugs/${d.id}`} className="font-medium text-primary hover:underline">
                             {d.name}

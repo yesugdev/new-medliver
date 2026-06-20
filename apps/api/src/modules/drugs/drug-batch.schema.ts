@@ -23,6 +23,12 @@ export class DrugBatchEntity {
   @Prop({ type: Number, default: 0, min: 0 })
   costPrice!: number;
 
+  @Prop({ type: Number, default: 0, min: 0 })
+  salePrice!: number;
+
+  @Prop({ type: String, trim: true })
+  supplier?: string;
+
   @Prop({ type: Date, default: Date.now })
   receivedAt!: Date;
 }

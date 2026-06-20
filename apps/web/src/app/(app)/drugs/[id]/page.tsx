@@ -22,14 +22,27 @@ import { formatDateTimeMn } from "@/lib/utils";
 const fmt = (n: number) => n.toLocaleString("mn-MN");
 const dateStr = (iso: string) => new Date(iso).toLocaleDateString("mn-MN");
 
+/** Auto ID — жш: PCT240501 (код + yymmdd) */
+function genBatchNo(code?: string): string {
+  const d = new Date();
+  const yy = String(d.getFullYear()).slice(2);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${(code || "LOT").toUpperCase()}${yy}${mm}${dd}`;
+}
+const today = () => new Date().toISOString().slice(0, 10);
+
 /* ─── Add batch panel ─────────────────────────────────────────────── */
-function BatchPanel({ drugId, onClose }: { drugId: string; onClose: () => void }) {
+function BatchPanel({ drugId, drugCode, onClose }: { drugId: string; drugCode?: string; onClose: () => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [batchNumber, setBatchNumber] = useState("");
+  const [batchNumber] = useState(() => genBatchNo(drugCode));
   const [expiryDate,  setExpiryDate]  = useState("");
   const [quantity,    setQuantity]    = useState("");
   const [costPrice,   setCostPrice]   = useState("");
+  const [salePrice,   setSalePrice]   = useState("");
+  const [supplier,    setSupplier]    = useState("");
+  const [receivedAt,  setReceivedAt]  = useState(today);
 
   const mut = useMutation({
     mutationFn: () => addBatch(drugId, {
@@ -37,6 +50,9 @@ function BatchPanel({ drugId, onClose }: { drugId: string; onClose: () => void }
       expiryDate: new Date(expiryDate).toISOString(),
       quantity: Number(quantity),
       costPrice: Number(costPrice),
+      salePrice: Number(salePrice),
+      supplier: supplier || undefined,
+      receivedAt: receivedAt ? new Date(receivedAt).toISOString() : undefined,
     } as CreateBatchInput),
     onSuccess: () => {
       toast({ title: "Орлого бүртгэгдлээ", variant: "success" });
@@ -49,12 +65,12 @@ function BatchPanel({ drugId, onClose }: { drugId: string; onClose: () => void }
     onError: (err) => toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" }),
   });
 
-  const valid = batchNumber && expiryDate && Number(quantity) > 0;
+  const valid = batchNumber && expiryDate && Number(quantity) > 0 && salePrice !== "";
 
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white shadow-2xl flex flex-col">
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-lg bg-white shadow-2xl flex flex-col">
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div className="flex items-center gap-2">
             <PackagePlus className="h-4 w-4 text-primary" />
@@ -66,8 +82,8 @@ function BatchPanel({ drugId, onClose }: { drugId: string; onClose: () => void }
         </div>
         <div className="px-6 py-5 space-y-4">
           <div className="space-y-1.5">
-            <Label>Цувралын дугаар <span className="text-destructive">*</span></Label>
-            <Input value={batchNumber} onChange={(e) => setBatchNumber(e.target.value)} placeholder="жш: LOT-2026-001" />
+            <Label>Цувралын дугаар <span className="text-xs text-muted-foreground">(Auto ID)</span></Label>
+            <Input value={batchNumber} readOnly disabled className="font-mono bg-muted/40" />
           </div>
           <div className="space-y-1.5">
             <Label>Дуусах хугацаа <span className="text-destructive">*</span></Label>
@@ -79,9 +95,21 @@ function BatchPanel({ drugId, onClose }: { drugId: string; onClose: () => void }
               <Input type="number" min={1} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
             </div>
             <div className="space-y-1.5">
-              <Label>Нэгж өртөг (₮)</Label>
+              <Label>Худалдан авсан үнэ (₮)</Label>
               <Input type="number" min={0} value={costPrice} onChange={(e) => setCostPrice(e.target.value)} />
             </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Зарах нэгж үнэ (₮) <span className="text-destructive">*</span></Label>
+            <Input type="number" min={0} value={salePrice} onChange={(e) => setSalePrice(e.target.value)} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Нийлүүлэгч</Label>
+            <Input value={supplier} onChange={(e) => setSupplier(e.target.value)} placeholder="Нийлүүлэгч компани..." />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Орлогын огноо</Label>
+            <Input type="date" value={receivedAt} onChange={(e) => setReceivedAt(e.target.value)} />
           </div>
           <Button className="w-full" disabled={!valid || mut.isPending} onClick={() => mut.mutate()}>
             {mut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
@@ -117,7 +145,7 @@ export default function DrugDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {showBatch && <BatchPanel drugId={id} onClose={() => setShowBatch(false)} />}
+      {showBatch && <BatchPanel drugId={id} drugCode={drug.code} onClose={() => setShowBatch(false)} />}
 
       <Link href="/drugs" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" />Эм бүртгэл рүү буцах
@@ -126,7 +154,12 @@ export default function DrugDetailPage({ params }: { params: Promise<{ id: strin
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{drug.name}</h1>
+          <div className="flex items-center gap-2">
+            {drug.code && (
+              <span className="font-mono text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">{drug.code}</span>
+            )}
+            <h1 className="text-2xl font-semibold tracking-tight">{drug.name}</h1>
+          </div>
           <p className="text-sm text-muted-foreground mt-1">
             {drug.form} · {drug.dosage} · {drug.unit}
             {drug.category ? ` · ${drug.category}` : ""}
@@ -175,6 +208,8 @@ export default function DrugDetailPage({ params }: { params: Promise<{ id: strin
                     <th className="text-right px-4 py-2.5 font-medium">Үлдэгдэл</th>
                     <th className="text-right px-4 py-2.5 font-medium">Анх</th>
                     <th className="text-right px-4 py-2.5 font-medium">Өртөг</th>
+                    <th className="text-right px-4 py-2.5 font-medium">Зарах үнэ</th>
+                    <th className="text-left px-4 py-2.5 font-medium">Нийлүүлэгч</th>
                     <th className="text-left px-4 py-2.5 font-medium">Орлогодсон</th>
                   </tr>
                 </thead>
@@ -195,7 +230,9 @@ export default function DrugDetailPage({ params }: { params: Promise<{ id: strin
                         </td>
                         <td className="px-4 py-3 text-right font-semibold">{b.quantity}</td>
                         <td className="px-4 py-3 text-right text-muted-foreground">{b.initialQuantity}</td>
-                        <td className="px-4 py-3 text-right">{fmt(b.costPrice)}₮</td>
+                        <td className="px-4 py-3 text-right text-muted-foreground">{fmt(b.costPrice)}₮</td>
+                        <td className="px-4 py-3 text-right font-medium">{fmt(b.salePrice)}₮</td>
+                        <td className="px-4 py-3 text-muted-foreground text-xs">{b.supplier || "—"}</td>
                         <td className="px-4 py-3 text-muted-foreground text-xs">{dateStr(b.receivedAt)}</td>
                       </tr>
                     );
