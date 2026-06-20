@@ -368,7 +368,7 @@ export default function DrugsPage() {
                           <div className="flex items-center justify-end gap-1">
                             <Link href={`/drugs/${d.id}`}>
                               <Button variant="ghost" size="sm" className="h-7 text-xs gap-1">
-                                <Boxes className="h-3.5 w-3.5" />Цуврал
+                                <Boxes className="h-3.5 w-3.5" />Нөөц
                               </Button>
                             </Link>
                             <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={() => setPanel(d)}>
