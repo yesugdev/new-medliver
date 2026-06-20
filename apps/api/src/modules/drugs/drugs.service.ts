@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import type {
-  Drug, DrugBatch, StockMovement, DrugReport, StockMovementType,
+  Drug, DrugBatch, StockMovement, DrugReport, DrugExport, StockMovementType,
 } from "@his/shared";
 import { DrugEntity, DrugDocument } from "./drug.schema";
 import { DrugBatchEntity, DrugBatchDocument } from "./drug-batch.schema";
@@ -333,6 +333,23 @@ export class DrugsService {
         actor,
       });
     }
+  }
+
+  /** Excel татах — бүх эм + бүх цуврал */
+  async exportAll(): Promise<DrugExport> {
+    const drugDocs = await this.model.find().sort({ name: 1 }).exec();
+    const drugs = drugDocs.map((d) => this.toShared(d));
+    const nameById = new Map<string, string>(
+      drugDocs.map((d) => [d._id.toString(), d.name]),
+    );
+    const batchDocs = await this.batchModel
+      .find()
+      .sort({ drugId: 1, expiryDate: 1 })
+      .exec();
+    const batches = batchDocs.map((b) =>
+      this.batchToShared(b, nameById.get(b.drugId.toString())),
+    );
+    return { drugs, batches };
   }
 
   /* ── Тайлан ────────────────────────────────────────────────────── */

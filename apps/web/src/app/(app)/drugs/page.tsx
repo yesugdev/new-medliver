@@ -5,18 +5,19 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Pill, Plus, Pencil, Trash2, Loader2, AlertTriangle, X, Check,
-  Boxes, CalendarX2, BarChart3, ChevronRight, SlidersHorizontal,
+  Boxes, CalendarX2, BarChart3, ChevronRight, SlidersHorizontal, Download,
 } from "lucide-react";
 import type { Drug, CreateDrugInput } from "@his/shared";
 import { DRUG_CATEGORIES } from "@his/shared";
 import { getDrugOptions } from "@/lib/drug-options-api";
+import { downloadDrugExcel } from "@/lib/drug-export";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
-import { listDrugs, createDrug, updateDrug, deleteDrug, listExpiring } from "@/lib/drugs-api";
+import { listDrugs, createDrug, updateDrug, deleteDrug, listExpiring, getDrugExport } from "@/lib/drugs-api";
 import { extractApiError } from "@/lib/api";
 
 const fmt = (n: number) => n.toLocaleString("mn-MN");
@@ -181,6 +182,19 @@ export default function DrugsPage() {
   const [search, setSearch]     = useState("");
   const [catFilter, setCatFilter] = useState("");
   const [panel, setPanel]       = useState<"create" | Drug | null>(null);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const data = await getDrugExport();
+      downloadDrugExcel(data);
+    } catch (err) {
+      toast({ title: "Excel татахад алдаа гарлаа", description: extractApiError(err), variant: "destructive" });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const { data: drugs = [], isLoading } = useQuery({
     queryKey: ["drugs"],
@@ -242,6 +256,10 @@ export default function DrugsPage() {
           <p className="text-sm text-muted-foreground mt-1">Эмийн нөөц, цуврал, үнэ удирдах</p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" onClick={handleExport} disabled={exporting}>
+            {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Excel татах
+          </Button>
           <Link href="/settings/drug-options">
             <Button variant="outline"><SlidersHorizontal className="h-4 w-4" />Сонголт</Button>
           </Link>

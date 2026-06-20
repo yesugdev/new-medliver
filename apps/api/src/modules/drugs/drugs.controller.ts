@@ -37,6 +37,13 @@ export class DrugsController {
     return this.drugs.reports();
   }
 
+  /** Excel татах — бүх эм + цуврал */
+  @Get("export")
+  @Roles(...MANAGE)
+  exportAll() {
+    return this.drugs.exportAll();
+  }
+
   @Get(":id")
   @Roles(...CLINICAL)
   get(@Param("id") id: string) {

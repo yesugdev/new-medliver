@@ -176,3 +176,9 @@ export interface DrugReport {
   /** Эм бүрийн нөөцийн цувралын дэлгэрэнгүй */
   inventory: DrugInventoryRow[];
 }
+
+/** Excel татахад зориулсан бүрэн өгөгдөл */
+export interface DrugExport {
+  drugs: Drug[];
+  batches: DrugBatch[];
+}

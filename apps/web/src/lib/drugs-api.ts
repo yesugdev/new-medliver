@@ -1,6 +1,6 @@
 import type {
   Drug, CreateDrugInput, UpdateDrugInput,
-  DrugBatch, CreateBatchInput, StockMovement, DrugReport,
+  DrugBatch, CreateBatchInput, StockMovement, DrugReport, DrugExport,
 } from "@his/shared";
 import { api } from "./api";
 
@@ -57,5 +57,10 @@ export async function listExpiring(days = 30): Promise<DrugBatch[]> {
 
 export async function getDrugReports(): Promise<DrugReport> {
   const { data } = await api.get<DrugReport>("/drugs/reports");
+  return data;
+}
+
+export async function getDrugExport(): Promise<DrugExport> {
+  const { data } = await api.get<DrugExport>("/drugs/export");
   return data;
 }
