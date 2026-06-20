@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   HeartPulse, Loader2, Plus, CheckCircle2,
   Thermometer, Activity, Wind, Droplets, Weight, Ruler,
-  ChevronLeft, ChevronRight, Calendar, ArrowLeftRight,
+  ChevronLeft, ChevronRight, Calendar, ArrowLeftRight, List,
 } from "lucide-react";
 import type { Vitals, VitalsRecord } from "@his/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -507,6 +507,54 @@ function CompareTable({
   );
 }
 
+/* ─── Бүх бүртгэлийн жагсаалт ────────────────────────────────────────── */
+function VitalsHistoryList({ records }: { records: VitalsRecord[] }) {
+  const bp = (r: VitalsRecord) =>
+    r.bloodPressureSystolic != null && r.bloodPressureDiastolic != null
+      ? `${r.bloodPressureSystolic}/${r.bloodPressureDiastolic}`
+      : "—";
+  const num = (v?: number) => (v != null ? String(v) : "—");
+  const dt = (iso: string) => {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${formatTimeMn(iso)}`;
+  };
+
+  return (
+    <div className="overflow-x-auto max-h-96 overflow-y-auto">
+      <table className="w-full text-sm whitespace-nowrap">
+        <thead className="sticky top-0 bg-muted/40 z-10">
+          <tr className="text-xs text-muted-foreground border-b border-border">
+            <th className="text-left py-2 px-3 font-medium">Огноо</th>
+            <th className="text-center py-2 px-2 font-medium">T°</th>
+            <th className="text-center py-2 px-2 font-medium">ЦД</th>
+            <th className="text-center py-2 px-2 font-medium">ЗЦ</th>
+            <th className="text-center py-2 px-2 font-medium">Амьсгал</th>
+            <th className="text-center py-2 px-2 font-medium">SpO₂</th>
+            <th className="text-center py-2 px-2 font-medium">Жин</th>
+            <th className="text-center py-2 px-2 font-medium">Өндөр</th>
+            <th className="text-left py-2 px-3 font-medium">Бүртгэсэн</th>
+          </tr>
+        </thead>
+        <tbody>
+          {records.map((r) => (
+            <tr key={r.id} className="border-b border-border/40 last:border-0 hover:bg-muted/20">
+              <td className="py-2 px-3 font-mono text-xs">{dt(r.recordedAt)}</td>
+              <td className="py-2 px-2 text-center tabular-nums">{num(r.temperature)}</td>
+              <td className="py-2 px-2 text-center tabular-nums">{bp(r)}</td>
+              <td className="py-2 px-2 text-center tabular-nums">{num(r.heartRate)}</td>
+              <td className="py-2 px-2 text-center tabular-nums">{num(r.respiratoryRate)}</td>
+              <td className="py-2 px-2 text-center tabular-nums">{num(r.oxygenSaturation)}</td>
+              <td className="py-2 px-2 text-center tabular-nums">{num(r.weight)}</td>
+              <td className="py-2 px-2 text-center tabular-nums">{num(r.height)}</td>
+              <td className="py-2 px-3 text-xs text-violet-700">{r.recordedByName}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 /* ─── Record form ───────────────────────────────────────────────────── */
 function VitalsForm({
   patientId,
@@ -604,7 +652,7 @@ export function PatientVitals({
   const [showForm, setShowForm] = useState(false);
   const [activeMetric, setActiveMetric] = useState<string>("temp");
   const [period, setPeriod] = useState<string>(() => currentMonth());
-  const [compareOpen, setCompareOpen] = useState(false);
+  const [view, setView] = useState<"chart" | "compare" | "list">("chart");
 
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["vitals", patientId],
@@ -635,16 +683,26 @@ export function PatientVitals({
           <HeartPulse className="h-4 w-4 text-rose-500" />
           Амин үзүүлэлт
         </CardTitle>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {withPeriodNav && records.length > 0 && (
-            <Button
-              size="sm"
-              variant={compareOpen ? "default" : "outline"}
-              onClick={() => setCompareOpen((v) => !v)}
-            >
-              <ArrowLeftRight className="h-3.5 w-3.5" />
-              Харьцуулах
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant={view === "list" ? "default" : "outline"}
+                onClick={() => setView((v) => (v === "list" ? "chart" : "list"))}
+              >
+                <List className="h-3.5 w-3.5" />
+                Бүх бүртгэл
+              </Button>
+              <Button
+                size="sm"
+                variant={view === "compare" ? "default" : "outline"}
+                onClick={() => setView((v) => (v === "compare" ? "chart" : "compare"))}
+              >
+                <ArrowLeftRight className="h-3.5 w-3.5" />
+                Харьцуулах
+              </Button>
+            </>
           )}
           {canRecord && !showForm && (
             <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
@@ -670,12 +728,14 @@ export function PatientVitals({
           </p>
         ) : (
           <>
-            {/* ── Он-сар навигац (зөвхөн үзлэгийн контекст) ── */}
-            {withPeriodNav && (
+            {/* ── Он-сар навигац (жагсаалтаас бусад үед) ── */}
+            {withPeriodNav && view !== "list" && (
               <PeriodNav period={period} setPeriod={setPeriod} count={viewRecords.length} />
             )}
 
-            {compareOpen ? (
+            {view === "list" ? (
+              <VitalsHistoryList records={records} />
+            ) : view === "compare" ? (
               <CompareTable prev={comparePrev} current={compareCurrent} next={compareNext} />
             ) : viewRecords.length === 0 ? (
               <p className="text-sm text-muted-foreground p-5 text-center">
