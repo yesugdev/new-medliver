@@ -120,7 +120,15 @@ function FieldEditor({
             <Label className="text-xs mb-1 block">Төрөл</Label>
             <select
               value={field.type}
-              onChange={(e) => onChange({ ...field, type: e.target.value as EmrFieldType, options: [] })}
+              onChange={(e) => {
+                const newType = e.target.value as EmrFieldType;
+                const keepsOptions = ["select", "radio", "checkbox"].includes(newType);
+                onChange({
+                  ...field,
+                  type: newType,
+                  options: keepsOptions ? (field.options ?? []) : [],
+                });
+              }}
               className="h-8 w-full rounded-md border border-input bg-background px-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
             >
               {(Object.entries(FIELD_TYPE_LABELS) as [EmrFieldType, string][]).map(([v, l]) => (
