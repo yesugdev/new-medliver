@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Plus, Trash2, ChevronDown, ChevronUp,
   Loader2, Save, Settings2, X, Check, GripVertical,
-  FileText, AlertCircle,
+  FileText, AlertCircle, Scissors,
 } from "lucide-react";
 import type {
   EmrTabConfig, EmrSectionConfig, EmrFieldConfig, EmrFieldType,
@@ -57,6 +57,14 @@ function FieldEditor({
     const v = optInput.trim();
     if (!v) return;
     onChange({ ...field, options: [...(field.options ?? []), v] });
+    setOptInput("");
+  };
+
+  // Зайгаар тусгаарласан үг бүрийг тус тусдаа сонголт болгон нэмэх
+  const addOptSplit = () => {
+    const parts = optInput.split(/\s+/).map((p) => p.trim()).filter(Boolean);
+    if (parts.length === 0) return;
+    onChange({ ...field, options: [...(field.options ?? []), ...parts] });
     setOptInput("");
   };
 
@@ -197,10 +205,23 @@ function FieldEditor({
                 placeholder="Сонголт нэмэх... (Enter)"
                 className="h-8 text-sm flex-1"
               />
-              <Button size="sm" variant="outline" onClick={addOpt} className="h-8 px-3">
+              <Button
+                size="sm" variant="outline" onClick={addOpt} className="h-8 px-3"
+                title="Бүхэлд нь нэг сонголт болгож нэмэх"
+              >
                 <Plus className="h-3.5 w-3.5" />
               </Button>
+              <Button
+                size="sm" variant="outline" onClick={addOptSplit} className="h-8 px-3 gap-1"
+                title="Зайгаар тусгаарлаж тус тусдаа сонголт болгох"
+              >
+                <Scissors className="h-3.5 w-3.5" />
+                Салгах
+              </Button>
             </div>
+            <p className="text-[11px] text-muted-foreground">
+              <strong>+</strong> бүхэлд нь нэг сонголт · <strong>Салгах</strong> зайгаар тусгаарлаж тус тусад нь
+            </p>
           </div>
         )}
       </div>
