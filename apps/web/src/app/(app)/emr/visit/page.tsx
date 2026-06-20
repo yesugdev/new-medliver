@@ -369,7 +369,7 @@ function AccordionSection({
       {open && (
         <div className="px-5 py-5 border-t border-border bg-white">
           {section.type === "vitals" ? (
-            <PatientVitals patientId={patientId} />
+            <PatientVitals patientId={patientId} withPeriodNav />
           ) : section.fields && section.fields.length > 0 ? (
             <div className="space-y-5">
               {section.fields.map((field) => (

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   HeartPulse, Loader2, Plus, CheckCircle2,
   Thermometer, Activity, Wind, Droplets, Weight, Ruler,
+  ChevronLeft, ChevronRight, Calendar, ArrowLeftRight,
 } from "lucide-react";
 import type { Vitals, VitalsRecord } from "@his/shared";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -350,6 +351,162 @@ function MetricTab({
   );
 }
 
+/* ─── Он-сар (period) туслах функцууд ───────────────────────────────── */
+const currentMonth = () => new Date().toISOString().slice(0, 7); // YYYY-MM
+
+function shiftMonth(period: string, delta: number): string {
+  const [y, m] = period.split("-").map(Number);
+  const d = new Date(y, m - 1 + delta, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+
+function monthLabel(period: string): string {
+  const [y, m] = period.split("-");
+  return `${y} оны ${Number(m)} сар`;
+}
+
+/* ─── Он-сар навигац ────────────────────────────────────────────────── */
+function PeriodNav({
+  period,
+  setPeriod,
+  count,
+}: {
+  period: string;
+  setPeriod: (p: string) => void;
+  count: number;
+}) {
+  const atCurrent = period >= currentMonth();
+  return (
+    <div className="flex items-center justify-between px-3 py-2 bg-muted/20 border-b border-border">
+      <button
+        type="button"
+        onClick={() => setPeriod(shiftMonth(period, -1))}
+        title="Өмнөх сар"
+        className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-white hover:text-foreground transition-colors"
+      >
+        <ChevronLeft className="h-4 w-4" />
+      </button>
+
+      <div className="flex items-center gap-2">
+        <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="text-sm font-medium">{monthLabel(period)}</span>
+        <span className="text-[11px] text-muted-foreground">
+          {count > 0 ? `${count} бүртгэл` : "бүртгэлгүй"}
+        </span>
+      </div>
+
+      <button
+        type="button"
+        disabled={atCurrent}
+        onClick={() => setPeriod(shiftMonth(period, 1))}
+        title="Дараагийн сар"
+        className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-white hover:text-foreground transition-colors disabled:opacity-30 disabled:hover:bg-transparent"
+      >
+        <ChevronRight className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+/* ─── Харьцуулах хүснэгт (өмнөх ↔ одоогийн ↔ дараах) ────────────────── */
+interface CompareRow {
+  label: string;
+  unit: string;
+  key?: keyof VitalsRecord;
+  bp?: boolean;
+  dec: number;
+}
+const COMPARE_ROWS: CompareRow[] = [
+  { label: "Температур",     unit: "°C",   key: "temperature",      dec: 1 },
+  { label: "Цусны даралт",   unit: "mmHg", bp: true,                dec: 0 },
+  { label: "Зүрхний цохилт", unit: "/мин", key: "heartRate",        dec: 0 },
+  { label: "Амьсгал",        unit: "/мин", key: "respiratoryRate",  dec: 0 },
+  { label: "SpO₂",           unit: "%",    key: "oxygenSaturation", dec: 0 },
+  { label: "Жин",            unit: "кг",   key: "weight",           dec: 1 },
+  { label: "Өндөр",          unit: "см",   key: "height",           dec: 1 },
+];
+
+function cellVal(r: VitalsRecord | undefined, row: CompareRow): string {
+  if (!r) return "—";
+  if (row.bp) {
+    const s = r.bloodPressureSystolic, d = r.bloodPressureDiastolic;
+    return s != null && d != null ? `${s}/${d}` : "—";
+  }
+  const v = r[row.key!] as number | undefined;
+  return v != null ? v.toFixed(row.dec) : "—";
+}
+
+const cmpDate = (r?: VitalsRecord) =>
+  r ? new Date(r.recordedAt).toLocaleDateString("mn-MN") : "—";
+
+function CompareTable({
+  prev,
+  current,
+  next,
+}: {
+  prev?: VitalsRecord;
+  current?: VitalsRecord;
+  next?: VitalsRecord;
+}) {
+  if (!current) {
+    return (
+      <p className="text-sm text-muted-foreground p-5 text-center">
+        Харьцуулах бүртгэл алга
+      </p>
+    );
+  }
+  return (
+    <div className="overflow-x-auto p-3">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-xs text-muted-foreground border-b border-border">
+            <th className="text-left py-2 px-2 font-medium">Үзүүлэлт</th>
+            <th className="text-center py-2 px-2 font-medium">
+              Өмнөх<div className="font-normal text-[10px] mt-0.5">{cmpDate(prev)}</div>
+            </th>
+            <th className="text-center py-2 px-2 font-medium text-primary">
+              Одоогийн<div className="font-normal text-[10px] mt-0.5">{cmpDate(current)}</div>
+            </th>
+            <th className="text-center py-2 px-2 font-medium">
+              Дараах<div className="font-normal text-[10px] mt-0.5">{cmpDate(next)}</div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {COMPARE_ROWS.map((row) => {
+            let delta: number | null = null;
+            if (!row.bp && current && prev) {
+              const c = current[row.key!] as number | undefined;
+              const p = prev[row.key!] as number | undefined;
+              if (c != null && p != null) delta = +(c - p).toFixed(row.dec);
+            }
+            return (
+              <tr key={row.label} className="border-b border-border/40 last:border-0">
+                <td className="py-2 px-2 text-muted-foreground whitespace-nowrap">
+                  {row.label} <span className="text-[10px]">{row.unit}</span>
+                </td>
+                <td className="py-2 px-2 text-center tabular-nums">{cellVal(prev, row)}</td>
+                <td className="py-2 px-2 text-center tabular-nums font-semibold bg-primary/5">
+                  {cellVal(current, row)}
+                  {delta != null && delta !== 0 && (
+                    <span className={delta > 0 ? "text-amber-600 ml-1" : "text-sky-600 ml-1"}>
+                      {delta > 0 ? "▲" : "▼"}{Math.abs(delta).toFixed(row.dec)}
+                    </span>
+                  )}
+                </td>
+                <td className="py-2 px-2 text-center tabular-nums">{cellVal(next, row)}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <p className="text-[11px] text-muted-foreground px-2 pt-2">
+        ▲/▼ — өмнөх бүртгэлээс өөрчлөлт
+      </p>
+    </div>
+  );
+}
+
 /* ─── Record form ───────────────────────────────────────────────────── */
 function VitalsForm({
   patientId,
@@ -433,20 +590,43 @@ function VitalsForm({
 }
 
 /* ─── Main component ────────────────────────────────────────────────── */
-export function PatientVitals({ patientId }: { patientId: string }) {
+export function PatientVitals({
+  patientId,
+  withPeriodNav = false,
+}: {
+  patientId: string;
+  /** Үзлэгийн контекстод он-сар навигац харуулах (default: тухайн сар) */
+  withPeriodNav?: boolean;
+}) {
   const user = useAuthStore((s) => s.user);
   const canRecord = user && ["admin", "doctor", "nurse"].includes(user.role);
 
   const [showForm, setShowForm] = useState(false);
   const [activeMetric, setActiveMetric] = useState<string>("temp");
+  const [period, setPeriod] = useState<string>(() => currentMonth());
+  const [compareOpen, setCompareOpen] = useState(false);
 
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["vitals", patientId],
     queryFn: () => listPatientVitals(patientId),
   });
 
+  // Үзлэгийн контекстод сонгосон он-сараар шүүнэ; profile дээр бүгдийг харуулна
+  const viewRecords = withPeriodNav
+    ? records.filter((r) => r.recordedAt.slice(0, 7) === period)
+    : records;
+
   const selectedMetric =
     CHART_METRICS.find((m) => m.id === activeMetric) ?? CHART_METRICS[0];
+
+  // Харьцуулах — одоогийн (сонгосон сарын сүүлийн, эс бөгөөс хамгийн сүүлийн) ба
+  // түүний өмнөх/дараах бүртгэл. records нь шинэ→хуучин эрэмбэтэй.
+  const compareCurrent = viewRecords[0] ?? records[0];
+  const curIdx = compareCurrent
+    ? records.findIndex((r) => r.id === compareCurrent.id)
+    : -1;
+  const comparePrev = curIdx >= 0 ? records[curIdx + 1] : undefined; // өмнөх (хуучин)
+  const compareNext = curIdx > 0 ? records[curIdx - 1] : undefined;  // дараах (шинэ)
 
   return (
     <Card>
@@ -455,12 +635,24 @@ export function PatientVitals({ patientId }: { patientId: string }) {
           <HeartPulse className="h-4 w-4 text-rose-500" />
           Амин үзүүлэлт
         </CardTitle>
-        {canRecord && !showForm && (
-          <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
-            <Plus className="h-3.5 w-3.5" />
-            Бүртгэх
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {withPeriodNav && records.length > 0 && (
+            <Button
+              size="sm"
+              variant={compareOpen ? "default" : "outline"}
+              onClick={() => setCompareOpen((v) => !v)}
+            >
+              <ArrowLeftRight className="h-3.5 w-3.5" />
+              Харьцуулах
+            </Button>
+          )}
+          {canRecord && !showForm && (
+            <Button size="sm" variant="outline" onClick={() => setShowForm(true)}>
+              <Plus className="h-3.5 w-3.5" />
+              Бүртгэх
+            </Button>
+          )}
+        </div>
       </CardHeader>
 
       {showForm && (
@@ -472,43 +664,60 @@ export function PatientVitals({ patientId }: { patientId: string }) {
           <div className="flex justify-center py-8">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
           </div>
-        ) : records.length === 0 ? (
+        ) : !withPeriodNav && records.length === 0 ? (
           <p className="text-sm text-muted-foreground p-5 text-center">
             Амин үзүүлэлтийн бүртгэл байхгүй
           </p>
         ) : (
           <>
-            {/* ── Metric selector tabs ── */}
-            <div className="flex gap-1 px-4 py-2 bg-muted/20 border-b border-border overflow-x-auto">
-              {CHART_METRICS.map((m) => (
-                <MetricTab
-                  key={m.id}
-                  metric={m}
-                  records={records}
-                  isActive={activeMetric === m.id}
-                  onClick={() => setActiveMetric(m.id)}
-                />
-              ))}
-            </div>
+            {/* ── Он-сар навигац (зөвхөн үзлэгийн контекст) ── */}
+            {withPeriodNav && (
+              <PeriodNav period={period} setPeriod={setPeriod} count={viewRecords.length} />
+            )}
 
-            {/* ── Sparkline chart ── */}
-            <div className="px-3 pt-3 pb-1">
-              <SparkChart records={records} metric={selectedMetric} />
-            </div>
+            {compareOpen ? (
+              <CompareTable prev={comparePrev} current={compareCurrent} next={compareNext} />
+            ) : viewRecords.length === 0 ? (
+              <p className="text-sm text-muted-foreground p-5 text-center">
+                {withPeriodNav
+                  ? "Энэ сард амин үзүүлэлт бүртгэгдээгүй"
+                  : "Амин үзүүлэлтийн бүртгэл байхгүй"}
+              </p>
+            ) : (
+              <>
+                {/* ── Metric selector tabs ── */}
+                <div className="flex gap-1 px-4 py-2 bg-muted/20 border-b border-border overflow-x-auto">
+                  {CHART_METRICS.map((m) => (
+                    <MetricTab
+                      key={m.id}
+                      metric={m}
+                      records={viewRecords}
+                      isActive={activeMetric === m.id}
+                      onClick={() => setActiveMetric(m.id)}
+                    />
+                  ))}
+                </div>
 
-            {/* ── Latest record info strip ── */}
-            {records[0] && (
-              <div className="px-5 py-2 border-t border-border/60 bg-muted/10 flex items-center justify-between">
-                <span className="text-xs text-muted-foreground">
-                  Сүүлийн бүртгэл:{" "}
-                  <span className="font-mono">
-                    {formatTimeMn(records[0].recordedAt)}
-                  </span>
-                </span>
-                <span className="text-xs font-semibold text-violet-700">
-                  {records[0].recordedByName}
-                </span>
-              </div>
+                {/* ── Sparkline chart ── */}
+                <div className="px-3 pt-3 pb-1">
+                  <SparkChart records={viewRecords} metric={selectedMetric} />
+                </div>
+
+                {/* ── Latest record info strip ── */}
+                {viewRecords[0] && (
+                  <div className="px-5 py-2 border-t border-border/60 bg-muted/10 flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground">
+                      {withPeriodNav ? "Энэ сарын сүүлийн:" : "Сүүлийн бүртгэл:"}{" "}
+                      <span className="font-mono">
+                        {formatTimeMn(viewRecords[0].recordedAt)}
+                      </span>
+                    </span>
+                    <span className="text-xs font-semibold text-violet-700">
+                      {viewRecords[0].recordedByName}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
           </>
         )}
