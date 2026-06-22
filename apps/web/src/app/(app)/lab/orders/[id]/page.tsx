@@ -14,11 +14,9 @@ import {
 import {
   LAB_ORDER_STATUS_LABELS_MN,
   LAB_PRIORITY_LABELS_MN,
-  LAB_CATEGORY_LABELS_MN,
   LAB_INTERPRETATION_LABELS_MN,
   type LabOrderStatus,
   type LabInterpretation,
-  type LabCategory,
   type LabOrderItem,
 } from "@his/shared";
 import { Button } from "@/components/ui/button";
@@ -27,7 +25,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { useAuthStore } from "@/stores/auth-store";
-import { getLabOrder, recordLabResults, cancelLabOrder } from "@/lib/lab-api";
+import { getLabOrder, recordLabResults, cancelLabOrder, listLabTests } from "@/lib/lab-api";
+import { printRequisition } from "@/lib/lab-print";
 import { LAB_ORDER_TONE, LAB_INTERP_TONE } from "@/lib/status-tones";
 import { extractApiError } from "@/lib/api";
 import { formatTimeMn } from "@/lib/format";
@@ -37,6 +36,7 @@ const INTERP_LABELS: Record<string, string> = {
   normal: "Хэвийн", low: "Бага", high: "Их",
   critical_low: "Маш бага", critical_high: "Маш их",
 };
+
 
 function printLabOrder(
   order: import("@his/shared").LabOrder,
@@ -244,7 +244,6 @@ export default function LabOrderDetailPage() {
   const user = useAuthStore((s) => s.user);
 
   const [resultValues, setResultValues] = useState<Record<string, string>>({});
-  const [labName, setLabName] = useState("");
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["lab-order", id],
@@ -258,6 +257,12 @@ export default function LabOrderDetailPage() {
     staleTime: 10 * 60_000,
   });
 
+  const { data: catalog = [] } = useQuery({
+    queryKey: ["lab-tests-all"],
+    queryFn: () => listLabTests(true),
+    staleTime: 5 * 60_000,
+  });
+
   /* Pre-fill inputs with existing results when order loads */
   useEffect(() => {
     if (order) {
@@ -266,7 +271,6 @@ export default function LabOrderDetailPage() {
         if (item.value) init[item.testId] = item.value;
       }
       setResultValues(init);
-      setLabName(order.labName ?? "");
     }
   }, [order?.id]);
 
@@ -276,12 +280,13 @@ export default function LabOrderDetailPage() {
         .filter(([, v]) => v.trim() !== "")
         .map(([testId, value]) => ({ testId, value: value.trim() }));
       if (items.length === 0) throw new Error("Хариу оруулаагүй байна");
-      return recordLabResults(id, items, labName.trim() || undefined);
+      return recordLabResults(id, items);
     },
     onSuccess: () => {
       toast({ title: "Хариу хадгалагдлаа", variant: "success" });
       qc.invalidateQueries({ queryKey: ["lab-order", id] });
       qc.invalidateQueries({ queryKey: ["lab-orders"] });
+      qc.invalidateQueries({ queryKey: ["lab-orders-by-patient"] });
     },
     onError: (e) =>
       toast({ title: "Алдаа", description: extractApiError(e), variant: "destructive" }),
@@ -365,6 +370,14 @@ export default function LabOrderDetailPage() {
         } : undefined)}>
           <Printer className="h-4 w-4" />
           Хэвлэх
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => printRequisition(order, patientData, catalog, printConfig)}
+        >
+          <Printer className="h-4 w-4" />
+          Шинжилгээний бичиг
         </Button>
         {canEdit && order.status === "ordered" && (
           <Button
@@ -491,32 +504,19 @@ export default function LabOrderDetailPage() {
         </div>
 
         {isEditable && (
-          <div className="p-4 border-t border-border bg-muted/20 space-y-3">
-            <div className="flex items-center gap-2 max-w-md">
-              <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
-                Шинжилгээ хийсэн эмнэлэг:
-              </label>
-              <Input
-                value={labName}
-                onChange={(e) => setLabName(e.target.value)}
-                placeholder="Жш: Улсын төв лаборатори"
-                className="h-8 text-sm"
-              />
-            </div>
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs text-muted-foreground">
-                Утга оруулаад <strong>Хадгалах</strong> дарна. Тоон утгыг автоматаар дүгнэлт тооцоолно.
-              </p>
-              <Button
-                onClick={() => saveResults.mutate()}
-                disabled={saveResults.isPending || pendingCount === 0}
-              >
-                {saveResults.isPending
-                  ? <Loader2 className="h-4 w-4 animate-spin" />
-                  : <CheckCircle2 className="h-4 w-4" />}
-                Бүгдийг хадгалах {pendingCount > 0 ? `(${pendingCount})` : ""}
-              </Button>
-            </div>
+          <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              Утга оруулаад <strong>Хадгалах</strong> дарна. Тоон утгыг автоматаар дүгнэлт тооцоолно.
+            </p>
+            <Button
+              onClick={() => saveResults.mutate()}
+              disabled={saveResults.isPending || pendingCount === 0}
+            >
+              {saveResults.isPending
+                ? <Loader2 className="h-4 w-4 animate-spin" />
+                : <CheckCircle2 className="h-4 w-4" />}
+              Бүгдийг хадгалах {pendingCount > 0 ? `(${pendingCount})` : ""}
+            </Button>
           </div>
         )}
       </Card>

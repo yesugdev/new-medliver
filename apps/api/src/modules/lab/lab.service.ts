@@ -230,6 +230,7 @@ export class LabService {
       status:      "ordered",
       priority:    dto.priority ?? "routine",
       clinicalNote: dto.clinicalNote,
+      labName:     dto.labName?.trim() || undefined,
       items,
     });
 
@@ -311,11 +312,15 @@ export class LabService {
   async listOrders(query: ListOrdersDto, actor: AuthUser): Promise<{ items: SharedOrder[]; total: number }> {
     const filter: FilterQuery<LabOrderDocument> = {};
 
-    // Doctors only see their own orders unless admin/manager
-    if (actor.role === "doctor") filter.doctorId = new Types.ObjectId(actor.id);
-    else if (query.doctorId)     filter.doctorId = new Types.ObjectId(query.doctorId);
-
-    if (query.patientId) filter.patientId = new Types.ObjectId(query.patientId);
+    if (query.patientId) {
+      // Өвчтөний карт — тухайн өвчтөний БҮХ шинжилгээ (эмчээр хязгаарлахгүй)
+      filter.patientId = new Types.ObjectId(query.patientId);
+      if (query.doctorId) filter.doctorId = new Types.ObjectId(query.doctorId);
+    } else {
+      // Ерөнхий жагсаалт — эмч зөвхөн өөрийнхөө захиалгыг харна
+      if (actor.role === "doctor") filter.doctorId = new Types.ObjectId(actor.id);
+      else if (query.doctorId)     filter.doctorId = new Types.ObjectId(query.doctorId);
+    }
     if (query.status)    filter.status    = query.status;
     if (query.from || query.to) {
       filter.orderedAt = {};

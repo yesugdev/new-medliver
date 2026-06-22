@@ -44,6 +44,9 @@ function colHeader(name: string, refMin?: number, refMax?: number, refText?: str
 interface ResultRec {
   category: LabCategory;
   group: string;
+  orderId: string;
+  /** ISO timestamp — мөр эрэмбэлэх ба харуулах */
+  recordedAt: string;
   testId: string;
   testName: string;
   unit?: string;
@@ -56,6 +59,7 @@ interface ResultRec {
   interp?: LabInterpretation;
   notes?: string;
   resultedByName?: string;
+  labName?: string;
 }
 
 /* ─── Нэг бүлгийн матриц хүснэгт ─────────────────────────────────────── */
@@ -67,24 +71,32 @@ function GroupTable({ group, recs }: { group: string; recs: ResultRec[] }) {
     return [...map.values()].sort((a, b) => a.sortOrder - b.sortOrder || a.testName.localeCompare(b.testName));
   }, [recs]);
 
-  // Мөрүүд = ялгаатай огноо (өсөхөөр)
-  const dates = useMemo(
-    () => [...new Set(recs.map((r) => r.date))].sort(),
-    [recs],
-  );
+  // Мөрүүд = захиалга тус бүр (огноо+цагаар өсөхөөр). Нэг өдөр олон захиалга = тусдаа мөр.
+  const rows = useMemo(() => {
+    const m = new Map<string, { orderId: string; ts: string }>();
+    for (const r of recs) if (!m.has(r.orderId)) m.set(r.orderId, { orderId: r.orderId, ts: r.recordedAt });
+    return [...m.values()].sort((a, b) => b.ts.localeCompare(a.ts));
+  }, [recs]);
 
-  // (огноо, testId) → утга
+  // (orderId, testId) → утга
   const cell = useMemo(() => {
     const m = new Map<string, ResultRec>();
-    for (const r of recs) m.set(`${r.date}__${r.testId}`, r);
+    for (const r of recs) m.set(`${r.orderId}__${r.testId}`, r);
     return m;
   }, [recs]);
 
-  const metaByDate = (date: string) => {
-    const rowRecs = recs.filter((r) => r.date === date);
+  const metaByOrder = (orderId: string) => {
+    const rowRecs = recs.filter((r) => r.orderId === orderId);
     const notes = rowRecs.map((r) => r.notes).filter(Boolean).join("; ");
-    const lab = rowRecs.find((r) => r.resultedByName)?.resultedByName ?? "";
-    return { notes, lab };
+    const recordedBy = rowRecs.find((r) => r.resultedByName)?.resultedByName ?? "";
+    const lab = rowRecs.find((r) => r.labName)?.labName ?? "";
+    return { notes, recordedBy, lab };
+  };
+
+  const dt = (iso: string) => {
+    const d = new Date(iso);
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
   };
 
   return (
@@ -101,17 +113,18 @@ function GroupTable({ group, recs }: { group: string; recs: ResultRec[] }) {
                 </th>
               ))}
               <th className="text-left px-3 py-1.5 font-medium">Тэмдэглэл</th>
+              <th className="text-left px-3 py-1.5 font-medium">Эмнэлэг</th>
               <th className="text-left px-3 py-1.5 font-medium">Бүртгэсэн</th>
             </tr>
           </thead>
           <tbody>
-            {dates.map((date, i) => {
-              const meta = metaByDate(date);
+            {rows.map((row, i) => {
+              const meta = metaByOrder(row.orderId);
               return (
-                <tr key={date} className={i % 2 ? "bg-muted/30" : "bg-white"}>
-                  <td className="px-3 py-1.5 font-mono sticky left-0 z-10 bg-inherit">{date}</td>
+                <tr key={row.orderId} className={i % 2 ? "bg-muted/30" : "bg-white"}>
+                  <td className="px-3 py-1.5 font-mono sticky left-0 z-10 bg-inherit">{dt(row.ts)}</td>
                   {tests.map((t) => {
-                    const r = cell.get(`${date}__${t.testId}`);
+                    const r = cell.get(`${row.orderId}__${t.testId}`);
                     return (
                       <td key={t.testId} className={`px-3 py-1.5 tabular-nums ${valueClass(r?.interp)}`}>
                         {r?.value ?? ""}
@@ -120,6 +133,7 @@ function GroupTable({ group, recs }: { group: string; recs: ResultRec[] }) {
                   })}
                   <td className="px-3 py-1.5 text-muted-foreground">{meta.notes || ""}</td>
                   <td className="px-3 py-1.5 text-muted-foreground">{meta.lab || ""}</td>
+                  <td className="px-3 py-1.5 text-muted-foreground">{meta.recordedBy || ""}</td>
                 </tr>
               );
             })}
@@ -165,9 +179,13 @@ function ResultEntryPanel({
         .filter(([, v]) => v.trim() !== "")
         .map(([testId, value]) => ({ testId, value: value.trim() }));
       if (items.length === 0) throw new Error("Хариу оруулаагүй байна");
+      // Сонгосон огноог одоогийн цагтай хослуулна (UTC шөнө дунд болж 08:00 харагдахаас сэргийлнэ)
+      const [yy, mm, dd] = date.split("-").map(Number);
+      const now = new Date();
+      const stamp = new Date(yy, mm - 1, dd, now.getHours(), now.getMinutes(), now.getSeconds());
       return quickLabResult({
         patientId,
-        date: new Date(date).toISOString(),
+        date: stamp.toISOString(),
         labName: labName.trim() || undefined,
         items,
       });
@@ -293,6 +311,8 @@ export function PatientLabResults({ patientId }: { patientId: string }) {
         out.push({
           category:       meta?.category ?? "other",
           group:          it.testGroup?.trim() || "Бусад",
+          orderId:        o.id,
+          recordedAt:     it.resultedAt ?? o.orderedAt,
           testId:         it.testId,
           testName:       it.testName,
           unit:           it.unit,
@@ -305,6 +325,7 @@ export function PatientLabResults({ patientId }: { patientId: string }) {
           interp:         it.interpretation,
           notes:          it.notes,
           resultedByName: it.resultedByName,
+          labName:        o.labName,
         });
       }
     }

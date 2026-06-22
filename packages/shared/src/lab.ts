@@ -165,6 +165,8 @@ export interface CreateLabOrderInput {
   visitId?: string;
   priority?: LabPriority;
   clinicalNote?: string;
+  /** Шинжилгээ хийгдэх эмнэлэг / лаборатори */
+  labName?: string;
   testIds: string[];
 }
 

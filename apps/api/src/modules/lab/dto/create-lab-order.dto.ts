@@ -16,6 +16,9 @@ export class CreateLabOrderDto {
   @IsOptional() @IsString() @MaxLength(1000)
   clinicalNote?: string;
 
+  @IsOptional() @IsString() @MaxLength(200)
+  labName?: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @IsMongoId({ each: true })

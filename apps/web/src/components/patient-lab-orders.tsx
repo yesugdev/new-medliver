@@ -35,6 +35,7 @@ function QuickOrderForm({ patientId, onDone }: { patientId: string; onDone: () =
   const qc = useQueryClient();
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
+  const [labName, setLabName] = useState("");
 
   const { data: tests = [], isLoading } = useQuery({
     queryKey: ["lab-tests-all"],
@@ -56,7 +57,7 @@ function QuickOrderForm({ patientId, onDone }: { patientId: string; onDone: () =
     setSelected((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   const mutation = useMutation({
-    mutationFn: () => createLabOrder({ patientId, testIds: selected }),
+    mutationFn: () => createLabOrder({ patientId, testIds: selected, labName: labName.trim() || undefined }),
     onSuccess: () => {
       toast({ title: "Шинжилгээ захиалагдлаа", variant: "success" });
       qc.invalidateQueries({ queryKey: ["lab-orders-by-patient", patientId] });
@@ -122,6 +123,13 @@ function QuickOrderForm({ patientId, onDone }: { patientId: string; onDone: () =
           })
         )}
       </div>
+
+      <Input
+        placeholder="Шинжилгээ хийх эмнэлэг (заавал биш)"
+        value={labName}
+        onChange={(e) => setLabName(e.target.value)}
+        className="h-8 text-sm max-w-sm"
+      />
 
       <div className="flex gap-2">
         <Button size="sm" onClick={() => mutation.mutate()} disabled={selected.length === 0 || mutation.isPending}>

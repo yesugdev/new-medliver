@@ -38,6 +38,7 @@ export default function NewLabOrderPage() {
   /* Order fields */
   const [priority,     setPriority]     = useState("routine");
   const [clinicalNote, setClinicalNote] = useState("");
+  const [labName,      setLabName]      = useState("");
   const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set());
 
   /* Queries */
@@ -87,6 +88,7 @@ export default function NewLabOrderPage() {
         patientId,
         priority: priority as any,
         clinicalNote: clinicalNote || undefined,
+        labName: labName.trim() || undefined,
         testIds: [...selectedIds],
       }),
     onSuccess: (order) => {
@@ -174,6 +176,14 @@ export default function NewLabOrderPage() {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Шинжилгээ хийх эмнэлэг</Label>
+                <Input
+                  placeholder="Жш: Улсын төв лаборатори"
+                  value={labName}
+                  onChange={(e) => setLabName(e.target.value)}
+                />
               </div>
               <div className="space-y-1.5">
                 <Label>Клиникийн тэмдэглэл</Label>
