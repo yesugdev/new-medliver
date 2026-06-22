@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -20,6 +20,39 @@ import {
 import { listDoctors } from "@/lib/users-api";
 
 const phoneRegex = /^[0-9+\-\s()]{6,20}$/;
+
+/**
+ * Монгол регистрийн дугаараас төрсөн огноо тооцоолох.
+ * Формат: 2 үсэг + YYMMDD + 2 цифр.
+ *  - 2000-аад он: сар талбар = бодит сар + 20 (21–32)
+ *  - 1900-аад он: сар талбар = бодит сар (01–12)
+ */
+function birthDateFromRegister(reg?: string): string | null {
+  if (!reg) return null;
+  const m = reg.trim().match(/^[^\d]{2}(\d{2})(\d{2})(\d{2})\d{2}$/);
+  if (!m) return null;
+  const yy = parseInt(m[1], 10);
+  const monthField = parseInt(m[2], 10);
+  const dd = parseInt(m[3], 10);
+
+  let year: number;
+  let month: number;
+  if (monthField >= 21 && monthField <= 32) {
+    year = 2000 + yy;
+    month = monthField - 20;
+  } else if (monthField >= 1 && monthField <= 12) {
+    year = 1900 + yy;
+    month = monthField;
+  } else {
+    return null;
+  }
+  if (dd < 1 || dd > 31) return null;
+
+  const iso = `${year}-${String(month).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+  const d = new Date(iso);
+  if (isNaN(d.getTime()) || d.getMonth() + 1 !== month || d.getDate() !== dd) return null;
+  return iso;
+}
 
 const schema = z.object({
   registerNumber: z
@@ -113,6 +146,19 @@ export function PatientForm({
   } = form;
 
   const gender = watch("gender");
+  const registerNumber = watch("registerNumber");
+
+  // Регистрийн дугаар өөрчлөгдөхөд төрсөн огноог автоматаар тооцоолно.
+  // Засварлах хуудсанд анхны mount дээр хадгалсан огноог дарж бичихгүй.
+  const didMountRef = useRef(false);
+  useEffect(() => {
+    if (!didMountRef.current) {
+      didMountRef.current = true;
+      return;
+    }
+    const bd = birthDateFromRegister(registerNumber);
+    if (bd) setValue("birthDate", bd, { shouldValidate: true });
+  }, [registerNumber, setValue]);
 
   const [attendingDoctorId, setAttendingDoctorId] = useState(defaultValues?.attendingDoctorId ?? "");
   const [attendingDoctorName, setAttendingDoctorName] = useState(defaultValues?.attendingDoctorName ?? "");
@@ -172,7 +218,12 @@ export function PatientForm({
           <Field label="Нэр" error={errors.firstName?.message} required>
             <Input {...register("firstName")} />
           </Field>
-          <Field label="Регистрийн дугаар" error={errors.registerNumber?.message} required>
+          <Field
+            label="Регистрийн дугаар"
+            error={errors.registerNumber?.message}
+            hint="Төрсөн огноог автоматаар тооцоолно"
+            required
+          >
             <Input {...register("registerNumber")} placeholder="УУ12345678" maxLength={10} />
           </Field>
           <Field label="Утас" error={errors.phone?.message} required>

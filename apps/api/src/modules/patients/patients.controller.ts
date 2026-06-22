@@ -48,7 +48,7 @@ export class PatientsController {
   }
 
   @Post()
-  @Roles(ROLES.ADMIN, ROLES.RECEPTION)
+  @Roles(ROLES.ADMIN, ROLES.RECEPTION, ROLES.DOCTOR)
   create(@Body() dto: CreatePatientDto, @CurrentUser() user: AuthUser) {
     return this.patients.create(dto, user);
   }
