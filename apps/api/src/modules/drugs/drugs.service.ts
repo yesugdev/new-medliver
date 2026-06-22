@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
 import { Model, Types } from "mongoose";
 import type {
@@ -83,6 +83,7 @@ export class DrugsService {
       batchId:       doc.batchId?.toString(),
       type:          doc.type,
       quantity:      doc.quantity,
+      amount:        doc.amount,
       reason:        doc.reason,
       refType:       doc.refType,
       refId:         doc.refId,
@@ -252,12 +253,14 @@ export class DrugsService {
       await batch.save();
       remaining -= take;
       totalCost += take * batch.costPrice;
-      totalSale += take * (batch.salePrice ?? 0);
+      const saleAmt = take * (batch.salePrice ?? 0);
+      totalSale += saleAmt;
       await this.movementModel.create({
         drugId:        new Types.ObjectId(drugId),
         batchId:       batch._id,
         type:          movementType,
         quantity:      -take,
+        amount:        movementType === "out" ? saleAmt : undefined,
         reason:        opts.reason,
         refType:       opts.refType,
         refId:         opts.refId,
@@ -267,6 +270,27 @@ export class DrugsService {
     }
     await this.recomputeStock(drugId);
     return { deducted: qty - remaining, totalCost, totalSale };
+  }
+
+  /** Зарлага — эм олгох/зарах. FEFO-гоор хасаж, зарсан орлогыг буцаана. */
+  async dispense(
+    drugId: string,
+    quantity: number,
+    reason: string | undefined,
+    actor?: MovementActor,
+  ): Promise<{ deducted: number; totalSale: number; totalCost: number }> {
+    const drug = await this.model.findById(drugId).exec();
+    if (!drug) throw new NotFoundException("Эм олдсонгүй");
+    if (!quantity || quantity <= 0) throw new BadRequestException("Тоо хэмжээ буруу");
+    if (drug.stock < quantity) {
+      throw new BadRequestException(`Нөөц хүрэлцэхгүй (одоо: ${drug.stock} ${drug.unit})`);
+    }
+    return this.deductFEFO(drugId, quantity, {
+      movementType: "out",
+      refType: "sale",
+      reason: reason?.trim() || "Зарлага",
+      actor,
+    });
   }
 
   /** Нэхэмжлэл цуцлах үед refId-аар хасагдсан нөөцийг буцаах */

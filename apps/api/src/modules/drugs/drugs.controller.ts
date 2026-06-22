@@ -6,7 +6,7 @@ import { ROLES } from "@his/shared";
 import { Roles } from "../../common/decorators/roles.decorator";
 import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { DrugsService } from "./drugs.service";
-import { CreateDrugDto, UpdateDrugDto, AdjustStockDto, CreateBatchDto } from "./dto/drug.dto";
+import { CreateDrugDto, UpdateDrugDto, AdjustStockDto, CreateBatchDto, DispenseDto } from "./dto/drug.dto";
 
 const CLINICAL = [ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION];
 /** Эм бүртгэл, цуврал, тайлан хариуцах */
@@ -86,6 +86,13 @@ export class DrugsController {
   @Roles(...MANAGE)
   adjustStock(@Param("id") id: string, @Body() dto: AdjustStockDto, @CurrentUser() actor: AuthUser) {
     return this.drugs.adjustStock(id, dto.delta, { id: actor.id, name: actor.fullName });
+  }
+
+  /** Зарлага — эм олгох/зарах (FEFO, орлого тооцоолно) */
+  @Post(":id/dispense")
+  @Roles(...MANAGE)
+  dispense(@Param("id") id: string, @Body() dto: DispenseDto, @CurrentUser() actor: AuthUser) {
+    return this.drugs.dispense(id, dto.quantity, dto.reason, { id: actor.id, name: actor.fullName });
   }
 
   @Delete(":id")

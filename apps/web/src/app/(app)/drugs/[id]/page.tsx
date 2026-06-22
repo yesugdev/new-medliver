@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Boxes, Plus, Loader2, X, Check, ArrowDownUp,
-  CalendarX2, AlertTriangle, PackagePlus, PackageMinus, Settings2,
+  CalendarX2, AlertTriangle, PackagePlus, PackageMinus, Settings2, Minus,
 } from "lucide-react";
-import type { CreateBatchInput, StockMovementType } from "@his/shared";
+import type { CreateBatchInput, DispenseDrugInput, StockMovementType } from "@his/shared";
 import { STOCK_MOVEMENT_LABELS_MN } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
-import { getDrug, listBatches, addBatch, listMovements } from "@/lib/drugs-api";
+import { getDrug, listBatches, addBatch, listMovements, dispenseDrug } from "@/lib/drugs-api";
 import { extractApiError } from "@/lib/api";
 import { formatDateTimeMn } from "@/lib/utils";
 
@@ -121,6 +121,83 @@ function BatchPanel({ drugId, drugCode, onClose }: { drugId: string; drugCode?: 
   );
 }
 
+/* ─── Зарлага panel ───────────────────────────────────────────────── */
+function DispensePanel({
+  drugId, salePrice, unit, stock, onClose,
+}: {
+  drugId: string; salePrice: number; unit: string; stock: number; onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [quantity, setQuantity] = useState("");
+  const [reason,   setReason]   = useState("");
+
+  const qty = Number(quantity) || 0;
+  const revenue = qty * salePrice;
+
+  const mut = useMutation({
+    mutationFn: () => dispenseDrug(drugId, { quantity: qty, reason: reason || undefined } as DispenseDrugInput),
+    onSuccess: (res) => {
+      toast({
+        title: "Зарлага бүртгэгдлээ",
+        description: `${res.deducted} ${unit} · орлого ${res.totalSale.toLocaleString("mn-MN")}₮`,
+        variant: "success",
+      });
+      qc.invalidateQueries({ queryKey: ["drug", drugId] });
+      qc.invalidateQueries({ queryKey: ["drug-batches", drugId] });
+      qc.invalidateQueries({ queryKey: ["drug-movements", drugId] });
+      qc.invalidateQueries({ queryKey: ["drugs"] });
+      onClose();
+    },
+    onError: (err) => toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" }),
+  });
+
+  const valid = qty > 0 && qty <= stock;
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-sm bg-white shadow-2xl flex flex-col">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <div className="flex items-center gap-2">
+            <PackageMinus className="h-4 w-4 text-rose-600" />
+            <h2 className="text-base font-semibold">Зарлага — эм олгох</h2>
+          </div>
+          <button onClick={onClose} className="h-8 w-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted rounded-md">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <div className="rounded-lg border border-border bg-muted/20 px-4 py-2.5 text-sm flex justify-between">
+            <span className="text-muted-foreground">Одоогийн нөөц</span>
+            <span className="font-semibold">{stock} {unit}</span>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Тоо хэмжээ <span className="text-destructive">*</span></Label>
+            <Input type="number" min={1} max={stock} value={quantity} onChange={(e) => setQuantity(e.target.value)} />
+            {qty > stock && <p className="text-xs text-destructive">Нөөц хүрэлцэхгүй</p>}
+          </div>
+          <div className="space-y-1.5">
+            <Label>Шалтгаан</Label>
+            <Input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Жш: Эмчилгээнд олгов, борлуулалт..." />
+          </div>
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center justify-between">
+            <span className="text-sm text-emerald-800">Зарсан орлого</span>
+            <span className="text-lg font-bold text-emerald-700">{revenue.toLocaleString("mn-MN")}₮</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Нэгж үнэ {salePrice.toLocaleString("mn-MN")}₮ × {qty || 0}. Бодит орлого FEFO цувралын үнээр тооцогдоно.
+          </p>
+          <Button className="w-full" disabled={!valid || mut.isPending} onClick={() => mut.mutate()}>
+            {mut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            Зарлага бүртгэх
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
 const MOVE_ICON: Record<StockMovementType, React.ReactNode> = {
   in:     <PackagePlus className="h-3.5 w-3.5 text-emerald-600" />,
   out:    <PackageMinus className="h-3.5 w-3.5 text-rose-600" />,
@@ -132,6 +209,7 @@ const MOVE_ICON: Record<StockMovementType, React.ReactNode> = {
 export default function DrugDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [showBatch, setShowBatch] = useState(false);
+  const [showDispense, setShowDispense] = useState(false);
 
   const { data: drug, isLoading } = useQuery({ queryKey: ["drug", id], queryFn: () => getDrug(id) });
   const { data: batches = [] }   = useQuery({ queryKey: ["drug-batches", id], queryFn: () => listBatches(id) });
@@ -144,8 +222,17 @@ export default function DrugDetailPage({ params }: { params: Promise<{ id: strin
   const now = Date.now();
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 w-full">
       {showBatch && <BatchPanel drugId={id} drugCode={drug.code} onClose={() => setShowBatch(false)} />}
+      {showDispense && (
+        <DispensePanel
+          drugId={id}
+          salePrice={drug.salePrice}
+          unit={drug.unit}
+          stock={drug.stock}
+          onClose={() => setShowDispense(false)}
+        />
+      )}
 
       <Link href="/drugs" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
         <ArrowLeft className="h-4 w-4" />Эм бүртгэл рүү буцах
@@ -166,9 +253,14 @@ export default function DrugDetailPage({ params }: { params: Promise<{ id: strin
             {drug.manufacturer ? ` · ${drug.manufacturer}` : ""}
           </p>
         </div>
-        <Button onClick={() => setShowBatch(true)}>
-          <Plus className="h-4 w-4" />Орлого нэмэх
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => setShowDispense(true)} disabled={drug.stock <= 0}>
+            <Minus className="h-4 w-4" />Эм зарлага
+          </Button>
+          <Button onClick={() => setShowBatch(true)}>
+            <Plus className="h-4 w-4" />Эм орлого
+          </Button>
+        </div>
       </div>
 
       {/* Stat cards */}
@@ -197,7 +289,7 @@ export default function DrugDetailPage({ params }: { params: Promise<{ id: strin
         </CardHeader>
         <CardContent className="p-0">
           {batches.length === 0 ? (
-            <div className="text-center py-8 text-sm text-muted-foreground">Цуврал бүртгэгдээгүй. «Орлого нэмэх»-ээр эхлүүлнэ үү.</div>
+            <div className="text-center py-8 text-sm text-muted-foreground">Цуврал бүртгэгдээгүй. «Эм орлого»-оор эхлүүлнэ үү.</div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -261,6 +353,7 @@ export default function DrugDetailPage({ params }: { params: Promise<{ id: strin
                   <tr className="border-b border-border bg-muted/30 text-xs text-muted-foreground">
                     <th className="text-left px-4 py-2.5 font-medium">Төрөл</th>
                     <th className="text-right px-4 py-2.5 font-medium">Тоо</th>
+                    <th className="text-right px-4 py-2.5 font-medium">Орлого</th>
                     <th className="text-left px-4 py-2.5 font-medium">Шалтгаан</th>
                     <th className="text-left px-4 py-2.5 font-medium">Бүртгэсэн</th>
                     <th className="text-left px-4 py-2.5 font-medium">Огноо</th>
@@ -276,6 +369,9 @@ export default function DrugDetailPage({ params }: { params: Promise<{ id: strin
                       </td>
                       <td className={`px-4 py-2.5 text-right font-semibold ${m.quantity >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
                         {m.quantity >= 0 ? `+${m.quantity}` : m.quantity}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        {m.amount != null && m.amount > 0 ? `${m.amount.toLocaleString("mn-MN")}₮` : "—"}
                       </td>
                       <td className="px-4 py-2.5 text-muted-foreground">{m.reason || "—"}</td>
                       <td className="px-4 py-2.5 text-muted-foreground text-xs">{m.createdByName || "—"}</td>

@@ -84,6 +84,18 @@ export interface AdjustStockInput {
   delta: number; // positive = add, negative = deduct
 }
 
+/** Зарлага — эм олгох/зарах */
+export interface DispenseDrugInput {
+  quantity: number;
+  reason?: string;
+}
+
+export interface DispenseResult {
+  deducted: number;
+  totalSale: number;
+  totalCost: number;
+}
+
 /* ─── Цуврал (batch) ─────────────────────────────────────────────── */
 export interface DrugBatch {
   id: string;
@@ -136,6 +148,8 @@ export interface StockMovement {
   type: StockMovementType;
   /** Тэмдэгтэй: орлого +, зарлага − */
   quantity: number;
+  /** Зарлагын мөнгөн дүн (зарсан орлого) */
+  amount?: number;
   reason?: string;
   refType?: string;
   refId?: string;

@@ -242,7 +242,7 @@ export default function DrugsPage() {
   const soon    = expiring.filter((b) => new Date(b.expiryDate).getTime() > now);
 
   return (
-    <div className="space-y-6 max-w-6xl">
+    <div className="space-y-6 w-full">
       {panel === "create" && <DrugPanel drug={null} onClose={() => setPanel(null)} />}
       {panel && panel !== "create" && <DrugPanel drug={panel as Drug} onClose={() => setPanel(null)} />}
 

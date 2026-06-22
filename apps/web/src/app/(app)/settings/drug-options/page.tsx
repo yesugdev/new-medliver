@@ -117,7 +117,7 @@ export default function DrugOptionsPage() {
 
   return (
     <AuthGuard allowedRoles={[ROLES.ADMIN, ROLES.RECEPTION]}>
-      <div className="space-y-6 max-w-3xl">
+      <div className="space-y-6 w-full">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild>
             <Link href="/drugs"><ArrowLeft className="h-4 w-4" /></Link>

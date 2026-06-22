@@ -20,6 +20,10 @@ export class StockMovementEntity {
   @Prop({ type: Number, required: true })
   quantity!: number;
 
+  /** Зарлагын мөнгөн дүн (зарсан орлого) */
+  @Prop({ type: Number })
+  amount?: number;
+
   @Prop({ type: String, trim: true })
   reason?: string;
 

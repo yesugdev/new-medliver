@@ -1,6 +1,7 @@
 import type {
   Drug, CreateDrugInput, UpdateDrugInput,
   DrugBatch, CreateBatchInput, StockMovement, DrugReport, DrugExport,
+  DispenseDrugInput, DispenseResult,
 } from "@his/shared";
 import { api } from "./api";
 
@@ -32,6 +33,11 @@ export async function deleteDrug(id: string): Promise<void> {
 
 export async function adjustStock(id: string, delta: number): Promise<void> {
   await api.patch(`/drugs/${id}/stock`, { delta });
+}
+
+export async function dispenseDrug(id: string, payload: DispenseDrugInput): Promise<DispenseResult> {
+  const { data } = await api.post<DispenseResult>(`/drugs/${id}/dispense`, payload);
+  return data;
 }
 
 /* ─── Цуврал / хөдөлгөөн ──────────────────────────────────────────── */

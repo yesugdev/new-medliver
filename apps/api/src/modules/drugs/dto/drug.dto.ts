@@ -84,6 +84,14 @@ export class AdjustStockDto {
   delta!: number;
 }
 
+export class DispenseDto {
+  @Type(() => Number) @IsNumber() @Min(1)
+  quantity!: number;
+
+  @IsOptional() @IsString() @MaxLength(300)
+  reason?: string;
+}
+
 export class CreateBatchDto {
   @IsString() @MinLength(1) @MaxLength(100)
   batchNumber!: string;
