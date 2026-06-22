@@ -244,6 +244,7 @@ export default function LabOrderDetailPage() {
   const user = useAuthStore((s) => s.user);
 
   const [resultValues, setResultValues] = useState<Record<string, string>>({});
+  const [labName, setLabName] = useState("");
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["lab-order", id],
@@ -265,6 +266,7 @@ export default function LabOrderDetailPage() {
         if (item.value) init[item.testId] = item.value;
       }
       setResultValues(init);
+      setLabName(order.labName ?? "");
     }
   }, [order?.id]);
 
@@ -274,7 +276,7 @@ export default function LabOrderDetailPage() {
         .filter(([, v]) => v.trim() !== "")
         .map(([testId, value]) => ({ testId, value: value.trim() }));
       if (items.length === 0) throw new Error("Хариу оруулаагүй байна");
-      return recordLabResults(id, items);
+      return recordLabResults(id, items, labName.trim() || undefined);
     },
     onSuccess: () => {
       toast({ title: "Хариу хадгалагдлаа", variant: "success" });
@@ -384,6 +386,7 @@ export default function LabOrderDetailPage() {
           { label: "Код",       value: order.patientCode,                 mono: true },
           { label: "Эмч",       value: order.doctorName },
           { label: "Огноо",     value: formatTimeMn(order.orderedAt),    mono: true },
+          ...(order.labName ? [{ label: "Эмнэлэг", value: order.labName }] : []),
         ].map((info) => (
           <div key={info.label} className="bg-muted/30 rounded-lg px-3 py-2.5">
             <div className="text-[11px] text-muted-foreground">{info.label}</div>
@@ -488,19 +491,32 @@ export default function LabOrderDetailPage() {
         </div>
 
         {isEditable && (
-          <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              Утга оруулаад <strong>Хадгалах</strong> дарна. Тоон утгыг автоматаар дүгнэлт тооцоолно.
-            </p>
-            <Button
-              onClick={() => saveResults.mutate()}
-              disabled={saveResults.isPending || pendingCount === 0}
-            >
-              {saveResults.isPending
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <CheckCircle2 className="h-4 w-4" />}
-              Бүгдийг хадгалах {pendingCount > 0 ? `(${pendingCount})` : ""}
-            </Button>
+          <div className="p-4 border-t border-border bg-muted/20 space-y-3">
+            <div className="flex items-center gap-2 max-w-md">
+              <label className="text-xs font-medium text-muted-foreground whitespace-nowrap">
+                Шинжилгээ хийсэн эмнэлэг:
+              </label>
+              <Input
+                value={labName}
+                onChange={(e) => setLabName(e.target.value)}
+                placeholder="Жш: Улсын төв лаборатори"
+                className="h-8 text-sm"
+              />
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">
+                Утга оруулаад <strong>Хадгалах</strong> дарна. Тоон утгыг автоматаар дүгнэлт тооцоолно.
+              </p>
+              <Button
+                onClick={() => saveResults.mutate()}
+                disabled={saveResults.isPending || pendingCount === 0}
+              >
+                {saveResults.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <CheckCircle2 className="h-4 w-4" />}
+                Бүгдийг хадгалах {pendingCount > 0 ? `(${pendingCount})` : ""}
+              </Button>
+            </div>
           </div>
         )}
       </Card>

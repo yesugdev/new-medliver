@@ -10,6 +10,7 @@ import { CreateLabTestDto } from "./dto/create-lab-test.dto";
 import { UpdateLabTestDto } from "./dto/update-lab-test.dto";
 import { CreateLabOrderDto } from "./dto/create-lab-order.dto";
 import { RecordResultsDto } from "./dto/record-results.dto";
+import { QuickResultDto } from "./dto/quick-result.dto";
 import { ListOrdersDto } from "./dto/list-orders.dto";
 
 /* ── Test catalog (admin) ──────────────────────────────────────────── */
@@ -61,6 +62,13 @@ export class LabOrdersController {
   @Roles(ROLES.ADMIN, ROLES.DOCTOR)
   create(@Body() dto: CreateLabOrderDto, @CurrentUser() user: AuthUser) {
     return this.svc.createOrder(dto, user);
+  }
+
+  /** Захиалга үүсгэлгүйгээр шууд хариу оруулах */
+  @Post("quick")
+  @Roles(ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE)
+  quickResult(@Body() dto: QuickResultDto, @CurrentUser() user: AuthUser) {
+    return this.svc.quickResult(dto, user);
   }
 
   @Patch(":id/results")

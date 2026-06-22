@@ -1,0 +1,418 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { FlaskConical, Loader2, Inbox, X, Check } from "lucide-react";
+import {
+  LAB_CATEGORY_LABELS_MN,
+  type LabCategory,
+  type LabInterpretation,
+  type LabOrder,
+  type LabTest,
+} from "@his/shared";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast";
+import { useAuthStore } from "@/stores/auth-store";
+import { listLabOrders, listLabTests, quickLabResult } from "@/lib/lab-api";
+import { extractApiError } from "@/lib/api";
+
+/* Категорийн дараалал (tab-ийн эрэмбэ) */
+const CATEGORY_ORDER: LabCategory[] = [
+  "rapid_tests", "viral_load", "biochemistry", "hematology",
+  "coagulogram", "immunology", "urinalysis", "hormones", "microbiology", "other",
+];
+
+/* Утгын өнгө — interpretation-аар */
+function valueClass(interp?: LabInterpretation): string {
+  if (interp === "high" || interp === "critical_high") return "text-rose-600 font-semibold";
+  if (interp === "low" || interp === "critical_low") return "text-amber-600 font-semibold";
+  if (interp === "abnormal") return "text-rose-600";
+  return "";
+}
+
+/* Лавлагаа муж + нэгжтэй баганын гарчиг */
+function colHeader(name: string, refMin?: number, refMax?: number, refText?: string, unit?: string): string {
+  let ref = "";
+  if (refMin != null && refMax != null) ref = ` (${refMin} - ${refMax})`;
+  else if (refText) ref = ` (${refText})`;
+  return `${name}${ref}${unit ? ` ${unit}` : ""}`;
+}
+
+interface ResultRec {
+  category: LabCategory;
+  group: string;
+  testId: string;
+  testName: string;
+  unit?: string;
+  refMin?: number;
+  refMax?: number;
+  refText?: string;
+  sortOrder: number;
+  date: string;       // YYYY-MM-DD
+  value: string;
+  interp?: LabInterpretation;
+  notes?: string;
+  resultedByName?: string;
+}
+
+/* ─── Нэг бүлгийн матриц хүснэгт ─────────────────────────────────────── */
+function GroupTable({ group, recs }: { group: string; recs: ResultRec[] }) {
+  // Баганууд = ялгаатай тест (sortOrder-аар)
+  const tests = useMemo(() => {
+    const map = new Map<string, ResultRec>();
+    for (const r of recs) if (!map.has(r.testId)) map.set(r.testId, r);
+    return [...map.values()].sort((a, b) => a.sortOrder - b.sortOrder || a.testName.localeCompare(b.testName));
+  }, [recs]);
+
+  // Мөрүүд = ялгаатай огноо (өсөхөөр)
+  const dates = useMemo(
+    () => [...new Set(recs.map((r) => r.date))].sort(),
+    [recs],
+  );
+
+  // (огноо, testId) → утга
+  const cell = useMemo(() => {
+    const m = new Map<string, ResultRec>();
+    for (const r of recs) m.set(`${r.date}__${r.testId}`, r);
+    return m;
+  }, [recs]);
+
+  const metaByDate = (date: string) => {
+    const rowRecs = recs.filter((r) => r.date === date);
+    const notes = rowRecs.map((r) => r.notes).filter(Boolean).join("; ");
+    const lab = rowRecs.find((r) => r.resultedByName)?.resultedByName ?? "";
+    return { notes, lab };
+  };
+
+  return (
+    <div className="space-y-1.5">
+      <h4 className="text-xs font-semibold">{group}</h4>
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="w-full text-xs whitespace-nowrap">
+          <thead>
+            <tr className="bg-emerald-900 text-white">
+              <th className="text-left px-3 py-1.5 font-medium sticky left-0 bg-emerald-900 z-10">Огноо</th>
+              {tests.map((t) => (
+                <th key={t.testId} className="text-left px-3 py-1.5 font-medium">
+                  {colHeader(t.testName, t.refMin, t.refMax, t.refText, t.unit)}
+                </th>
+              ))}
+              <th className="text-left px-3 py-1.5 font-medium">Тэмдэглэл</th>
+              <th className="text-left px-3 py-1.5 font-medium">Бүртгэсэн</th>
+            </tr>
+          </thead>
+          <tbody>
+            {dates.map((date, i) => {
+              const meta = metaByDate(date);
+              return (
+                <tr key={date} className={i % 2 ? "bg-muted/30" : "bg-white"}>
+                  <td className="px-3 py-1.5 font-mono sticky left-0 z-10 bg-inherit">{date}</td>
+                  {tests.map((t) => {
+                    const r = cell.get(`${date}__${t.testId}`);
+                    return (
+                      <td key={t.testId} className={`px-3 py-1.5 tabular-nums ${valueClass(r?.interp)}`}>
+                        {r?.value ?? ""}
+                      </td>
+                    );
+                  })}
+                  <td className="px-3 py-1.5 text-muted-foreground">{meta.notes || ""}</td>
+                  <td className="px-3 py-1.5 text-muted-foreground">{meta.lab || ""}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Хариу оруулах panel (захиалга үүсгэлгүйгээр) ──────────────────── */
+function ResultEntryPanel({
+  patientId,
+  category,
+  tests,
+  onClose,
+}: {
+  patientId: string;
+  category: LabCategory;
+  tests: LabTest[];
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const { toast } = useToast();
+  const [date, setDate]       = useState(() => new Date().toISOString().slice(0, 10));
+  const [labName, setLabName] = useState("");
+  const [values, setValues]   = useState<Record<string, string>>({});
+
+  const groups = useMemo(() => {
+    const order: string[] = [];
+    const byGroup = new Map<string, LabTest[]>();
+    for (const t of [...tests].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))) {
+      const g = t.testGroup?.trim() || "Бусад";
+      if (!byGroup.has(g)) { byGroup.set(g, []); order.push(g); }
+      byGroup.get(g)!.push(t);
+    }
+    return order.map((g) => ({ group: g, tests: byGroup.get(g)! }));
+  }, [tests]);
+
+  const save = useMutation({
+    mutationFn: () => {
+      const items = Object.entries(values)
+        .filter(([, v]) => v.trim() !== "")
+        .map(([testId, value]) => ({ testId, value: value.trim() }));
+      if (items.length === 0) throw new Error("Хариу оруулаагүй байна");
+      return quickLabResult({
+        patientId,
+        date: new Date(date).toISOString(),
+        labName: labName.trim() || undefined,
+        items,
+      });
+    },
+    onSuccess: () => {
+      toast({ title: "Хариу хадгалагдлаа", variant: "success" });
+      qc.invalidateQueries({ queryKey: ["lab-orders-by-patient", patientId] });
+      onClose();
+    },
+    onError: (e) => toast({ title: "Алдаа", description: extractApiError(e), variant: "destructive" }),
+  });
+
+  const filled = Object.values(values).filter((v) => v.trim() !== "").length;
+  const ref = (t: LabTest) =>
+    t.referenceMin != null && t.referenceMax != null
+      ? `${t.referenceMin} - ${t.referenceMax}`
+      : t.referenceText ?? "";
+
+  return (
+    <>
+      <div className="fixed inset-0 z-40 bg-black/30 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white shadow-2xl flex flex-col">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+          <h2 className="text-base font-semibold flex items-center gap-2">
+            <FlaskConical className="h-4 w-4 text-emerald-600" />
+            {LAB_CATEGORY_LABELS_MN[category]} — хариу оруулах
+          </h2>
+          <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {/* Огноо + эмнэлэг */}
+        <div className="grid grid-cols-2 gap-3 px-5 py-3 border-b border-border">
+          <div className="space-y-1">
+            <Label className="text-xs">Шинжилгээ хийсэн огноо</Label>
+            <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="h-8 text-sm" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs">Эмнэлэг / лаборатори</Label>
+            <Input value={labName} onChange={(e) => setLabName(e.target.value)} placeholder="Жш: Төв лаборатори" className="h-8 text-sm" />
+          </div>
+        </div>
+
+        {/* Тестүүд */}
+        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-4">
+          {groups.map(({ group, tests: gts }) => (
+            <div key={group} className="space-y-2">
+              <h4 className="text-xs font-semibold text-muted-foreground">{group}</h4>
+              <div className="space-y-1.5">
+                {gts.map((t) => (
+                  <div key={t.id} className="grid grid-cols-[1fr_120px] items-center gap-2">
+                    <div className="min-w-0">
+                      <div className="text-sm truncate">{t.name}</div>
+                      {(ref(t) || t.unit) && (
+                        <div className="text-[11px] text-muted-foreground">
+                          {ref(t)}{t.unit ? ` ${t.unit}` : ""}
+                        </div>
+                      )}
+                    </div>
+                    {t.inputType === "select" && t.options?.length ? (
+                      <select
+                        value={values[t.id] ?? ""}
+                        onChange={(e) => setValues((p) => ({ ...p, [t.id]: e.target.value }))}
+                        className="h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                      >
+                        <option value="">—</option>
+                        {t.options.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ) : (
+                      <Input
+                        value={values[t.id] ?? ""}
+                        onChange={(e) => setValues((p) => ({ ...p, [t.id]: e.target.value }))}
+                        placeholder="Утга"
+                        className="h-8 text-sm"
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="px-5 py-3 border-t border-border">
+          <Button className="w-full" disabled={filled === 0 || save.isPending} onClick={() => save.mutate()}>
+            {save.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+            Хадгалах {filled > 0 ? `(${filled})` : ""}
+          </Button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/* ─── Үндсэн модул ───────────────────────────────────────────────────── */
+export function PatientLabResults({ patientId }: { patientId: string }) {
+  const { data: ordersResp, isLoading: ordersLoading } = useQuery({
+    queryKey: ["lab-orders-by-patient", patientId],
+    queryFn: () => listLabOrders({ patientId, pageSize: 200 }),
+  });
+  const { data: catalog = [], isLoading: catLoading } = useQuery({
+    queryKey: ["lab-tests-all"],
+    queryFn: () => listLabTests(true),
+    staleTime: 5 * 60_000,
+  });
+
+  // testId → catalog (category, sortOrder)
+  const catById = useMemo(() => {
+    const m = new Map<string, { category: LabCategory; sortOrder: number }>();
+    for (const t of catalog) m.set(t.id, { category: t.category, sortOrder: t.sortOrder ?? 0 });
+    return m;
+  }, [catalog]);
+
+  // Хариутай item-уудыг records болгож задлах
+  const records = useMemo<ResultRec[]>(() => {
+    const orders: LabOrder[] = ordersResp?.items ?? [];
+    const out: ResultRec[] = [];
+    for (const o of orders) {
+      for (const it of o.items) {
+        if (it.value == null || String(it.value).trim() === "") continue;
+        const meta = catById.get(it.testId);
+        out.push({
+          category:       meta?.category ?? "other",
+          group:          it.testGroup?.trim() || "Бусад",
+          testId:         it.testId,
+          testName:       it.testName,
+          unit:           it.unit,
+          refMin:         it.referenceMin,
+          refMax:         it.referenceMax,
+          refText:        it.referenceText,
+          sortOrder:      meta?.sortOrder ?? 0,
+          date:           (it.resultedAt ?? o.orderedAt).slice(0, 10),
+          value:          String(it.value),
+          interp:         it.interpretation,
+          notes:          it.notes,
+          resultedByName: it.resultedByName,
+        });
+      }
+    }
+    return out;
+  }, [ordersResp, catById]);
+
+  // Бүх категори (catalog дахь) — tab бүр харагдана, хариугүй ч хоосон харагдана
+  const categories = useMemo(() => {
+    const present = new Set(catalog.map((t) => t.category));
+    return CATEGORY_ORDER.filter((c) => present.has(c));
+  }, [catalog]);
+
+  const [active, setActive] = useState<LabCategory | null>(null);
+  const activeCat = active && categories.includes(active) ? active : categories[0] ?? null;
+
+  const user = useAuthStore((s) => s.user);
+  const canRecord = !!user && ["admin", "doctor", "nurse"].includes(user.role);
+  const [entryOpen, setEntryOpen] = useState(false);
+  const activeTests = useMemo(
+    () => (activeCat ? catalog.filter((t) => t.category === activeCat) : []),
+    [catalog, activeCat],
+  );
+
+  // Идэвхтэй категорийн бүлгүүд
+  const groups = useMemo(() => {
+    if (!activeCat) return [];
+    const inCat = records.filter((r) => r.category === activeCat);
+    const order: string[] = [];
+    for (const r of inCat) if (!order.includes(r.group)) order.push(r.group);
+    return order.map((g) => ({ group: g, recs: inCat.filter((r) => r.group === g) }));
+  }, [records, activeCat]);
+
+  const isLoading = ordersLoading || catLoading;
+
+  return (
+    <Card>
+      {entryOpen && activeCat && (
+        <ResultEntryPanel
+          patientId={patientId}
+          category={activeCat}
+          tests={activeTests}
+          onClose={() => setEntryOpen(false)}
+        />
+      )}
+      <CardContent className="p-0">
+        {/* Толгой + ХАРИУ ОРУУЛАХ */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <span className="text-base font-semibold flex items-center gap-2">
+            <FlaskConical className="h-4 w-4 text-emerald-600" />
+            Шинжилгээ
+          </span>
+          {canRecord && (
+            <Button
+              size="sm"
+              className="bg-rose-500 hover:bg-rose-600 text-white"
+              disabled={!activeCat || activeTests.length === 0}
+              onClick={() => setEntryOpen(true)}
+            >
+              ХАРИУ ОРУУЛАХ
+            </Button>
+          )}
+        </div>
+
+        {isLoading ? (
+          <div className="flex justify-center py-10">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          </div>
+        ) : categories.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">
+            <Inbox className="h-10 w-10 opacity-20" />
+            <p className="text-sm">Мэдээлэл байхгүй байна</p>
+          </div>
+        ) : (
+          <>
+            {/* Категори tab-ууд — бүх шинжилгээ */}
+            <div className="flex gap-1 px-3 py-2 border-b border-border overflow-x-auto">
+              {categories.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => setActive(c)}
+                  className={`px-3 py-1.5 rounded-md text-xs whitespace-nowrap transition-colors ${
+                    activeCat === c
+                      ? "bg-emerald-700 text-white font-medium"
+                      : "text-muted-foreground hover:bg-muted"
+                  }`}
+                >
+                  {LAB_CATEGORY_LABELS_MN[c]}
+                </button>
+              ))}
+            </div>
+
+            {/* Бүлгийн хүснэгтүүд — хариугүй бол хоосон */}
+            {groups.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2 text-muted-foreground">
+                <Inbox className="h-9 w-9 opacity-20" />
+                <p className="text-xs">Мэдээлэл байхгүй байна</p>
+              </div>
+            ) : (
+              <div className="p-4 space-y-6">
+                {groups.map(({ group, recs }) => (
+                  <GroupTable key={group} group={group} recs={recs} />
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

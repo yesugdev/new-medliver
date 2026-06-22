@@ -126,6 +126,8 @@ export interface LabOrder {
   status: LabOrderStatus;
   priority: LabPriority;
   clinicalNote?: string;
+  /** Шинжилгээ хийгдсэн эмнэлэг / лаборатори */
+  labName?: string;
   items: LabOrderItem[];
   createdAt: string;
   updatedAt: string;
@@ -170,4 +172,14 @@ export interface RecordLabResultItem {
   testId: string;
   value: string;
   notes?: string;
+}
+
+/** Захиалга үүсгэлгүйгээр шууд хариу оруулах */
+export interface QuickLabResultInput {
+  patientId: string;
+  visitId?: string;
+  /** Шинжилгээ хийсэн огноо (ISO). Байхгүй бол өнөөдөр */
+  date?: string;
+  labName?: string;
+  items: { testId: string; value: string; notes?: string }[];
 }

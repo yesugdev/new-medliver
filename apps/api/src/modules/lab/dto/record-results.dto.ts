@@ -21,4 +21,7 @@ export class RecordResultsDto {
   @ValidateNested({ each: true })
   @Type(() => ResultItemDto)
   items!: ResultItemDto[];
+
+  @IsOptional() @IsString() @MaxLength(200)
+  labName?: string;
 }

@@ -65,6 +65,10 @@ export class LabOrder {
   @Prop({ type: String, trim: true })
   clinicalNote?: string;
 
+  /** Шинжилгээ хийгдсэн эмнэлэг / лаборатори */
+  @Prop({ type: String, trim: true })
+  labName?: string;
+
   @Prop({ type: [LabOrderItemSchema], default: [] })
   items!: LabOrderItem[];
 }

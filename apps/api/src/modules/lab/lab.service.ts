@@ -15,6 +15,7 @@ import { CreateLabTestDto } from "./dto/create-lab-test.dto";
 import { UpdateLabTestDto } from "./dto/update-lab-test.dto";
 import { CreateLabOrderDto } from "./dto/create-lab-order.dto";
 import { RecordResultsDto } from "./dto/record-results.dto";
+import { QuickResultDto } from "./dto/quick-result.dto";
 import { ListOrdersDto } from "./dto/list-orders.dto";
 
 /* ─── Interpretation helper ─────────────────────────────────────────── */
@@ -121,6 +122,7 @@ export class LabService {
         status:       doc.status as any,
         priority:     doc.priority as any,
         clinicalNote: doc.clinicalNote,
+        labName:      doc.labName,
         items: doc.items.map((item) => ({
           testId:         item.testId.toString(),
           testCode:       item.testCode,
@@ -240,6 +242,72 @@ export class LabService {
     return result;
   }
 
+  /** Захиалга үүсгэлгүйгээр шууд хариу оруулах — нэг алхамд order+result үүсгэнэ */
+  async quickResult(dto: QuickResultDto, actor: AuthUser): Promise<SharedOrder> {
+    const testIds = dto.items.map((i) => i.testId);
+    const [patient, tests] = await Promise.all([
+      this.patientModel.findById(dto.patientId).lean(),
+      this.testModel.find({ _id: { $in: testIds }, isActive: true }).lean(),
+    ]);
+    if (!patient) throw new BadRequestException("Өвчтөн олдсонгүй");
+    if (tests.length === 0) throw new BadRequestException("Шинжилгээ олдсонгүй");
+
+    const byName = (await this.userModel.findById(actor.id).lean())?.fullName ?? actor.email;
+    const when = dto.date ? new Date(dto.date) : new Date();
+    const inputByTest = new Map(dto.items.map((i) => [i.testId, i]));
+
+    const items: Partial<LabOrderItem>[] = [];
+    for (const t of tests) {
+      const input = inputByTest.get((t._id as Types.ObjectId).toString());
+      const value = input?.value?.trim() ?? "";
+      if (!value) continue; // зөвхөн утга бөглөсөн шинжилгээ
+      items.push({
+        testId:        t._id as Types.ObjectId,
+        testCode:      t.code,
+        testName:      t.name,
+        testGroup:     t.testGroup,
+        unit:          t.unit,
+        referenceMin:  t.referenceMin,
+        referenceMax:  t.referenceMax,
+        referenceText: t.referenceText,
+        inputType:     (t.inputType ?? "text") as any,
+        options:       t.options,
+        status:        "resulted",
+        value,
+        interpretation: (autoInterpret(value, t.referenceMin, t.referenceMax)
+          ?? (t.referenceText ? "normal" : undefined)) as any,
+        notes:          input?.notes,
+        resultedAt:     when,
+        resultedById:   new Types.ObjectId(actor.id),
+        resultedByName: byName,
+      });
+    }
+    if (items.length === 0) throw new BadRequestException("Хариу оруулаагүй байна");
+
+    const orderNumber = await nextOrderNumber(this.orderModel);
+    const doc = await this.orderModel.create({
+      orderNumber,
+      patientId:  new Types.ObjectId(dto.patientId),
+      doctorId:   new Types.ObjectId(actor.id),
+      visitId:    dto.visitId ? new Types.ObjectId(dto.visitId) : undefined,
+      orderedAt:  when,
+      status:     "completed",
+      priority:   "routine",
+      labName:    dto.labName?.trim() || undefined,
+      items,
+    });
+    doc.status = computeOrderStatus(doc.items) as any;
+    await doc.save();
+
+    await this.audit.record({
+      actorId: actor.id, actorEmail: actor.email,
+      action: "lab_order.quick_result", resource: "lab_order", resourceId: doc._id.toString(),
+    });
+
+    const [result] = await this.hydrateOrders([doc]);
+    return result;
+  }
+
   async listOrders(query: ListOrdersDto, actor: AuthUser): Promise<{ items: SharedOrder[]; total: number }> {
     const filter: FilterQuery<LabOrderDocument> = {};
 
@@ -306,6 +374,8 @@ export class LabService {
       item.resultedById   = new Types.ObjectId(actor.id);
       item.resultedByName = byName;
     }
+
+    if (dto.labName !== undefined) doc.labName = dto.labName.trim() || undefined;
 
     doc.status = computeOrderStatus(doc.items) as any;
     await doc.save();

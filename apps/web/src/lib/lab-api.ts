@@ -6,6 +6,7 @@ import type {
   UpdateLabTestInput,
   CreateLabOrderInput,
   RecordLabResultItem,
+  QuickLabResultInput,
 } from "@his/shared";
 import { api } from "./api";
 
@@ -63,12 +64,18 @@ export async function createLabOrder(
 export async function recordLabResults(
   orderId: string,
   items: RecordLabResultItem[],
+  labName?: string,
 ): Promise<LabOrder> {
-  const { data } = await api.patch<LabOrder>(`/lab/orders/${orderId}/results`, { items });
+  const { data } = await api.patch<LabOrder>(`/lab/orders/${orderId}/results`, { items, labName });
   return data;
 }
 
 export async function cancelLabOrder(id: string): Promise<LabOrder> {
   const { data } = await api.patch<LabOrder>(`/lab/orders/${id}/cancel`);
+  return data;
+}
+
+export async function quickLabResult(payload: QuickLabResultInput): Promise<LabOrder> {
+  const { data } = await api.post<LabOrder>("/lab/orders/quick", payload);
   return data;
 }

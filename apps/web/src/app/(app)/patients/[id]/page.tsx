@@ -13,6 +13,7 @@ import { PatientVisits } from "@/components/patient-visits";
 import { PatientInvoices } from "@/components/patient-invoices";
 import { PatientVitals } from "@/components/patient-vitals";
 import { PatientLabOrders } from "@/components/patient-lab-orders";
+import { PatientLabResults } from "@/components/patient-lab-results";
 import { PatientMedicalHistory } from "@/components/patient-medical-history";
 import { PatientTreatment } from "@/components/patient-treatment";
 import { PatientComplaints } from "@/components/patient-complaints";
@@ -277,6 +278,13 @@ export default function PatientDetailPage({
 
       <CollapsibleSection
         title="Шинжилгээ"
+        icon={<FlaskConical className="h-4 w-4" />}
+      >
+        <PatientLabResults patientId={patient.id} />
+      </CollapsibleSection>
+
+      <CollapsibleSection
+        title="Шинжилгээний түүх"
         icon={<FlaskConical className="h-4 w-4" />}
       >
         <PatientLabOrders patientId={patient.id} />
