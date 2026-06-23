@@ -414,7 +414,11 @@ export class DrugsService {
         valuation: valByDrug.get(d._id.toString()) ?? 0,
       }));
 
-    const totalValuation = Array.from(valByDrug.values()).reduce((s, v) => s + v, 0);
+    // Зөвхөн идэвхтэй эмийн нөөцийн үнэлгээ
+    const totalValuation = drugs.reduce(
+      (s, d) => s + (valByDrug.get(d._id.toString()) ?? 0),
+      0,
+    );
 
     const nameByDrug = new Map<string, string>(
       drugs.map((d) => [d._id.toString(), d.name]),
