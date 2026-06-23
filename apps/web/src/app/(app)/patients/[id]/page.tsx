@@ -8,6 +8,7 @@ import { GENDER_LABELS_MN } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getPatient } from "@/lib/patients-api";
+import { useAuthStore } from "@/stores/auth-store";
 import { calculateAge, formatDateMn, cn } from "@/lib/utils";
 import { PatientVisits } from "@/components/patient-visits";
 import { PatientInvoices } from "@/components/patient-invoices";
@@ -66,6 +67,7 @@ export default function PatientDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const role = useAuthStore((s) => s.user?.role);
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", id],
     queryFn: () => getPatient(id),
@@ -297,12 +299,14 @@ export default function PatientDetailPage({
         <PatientVisits patientId={patient.id} />
       </CollapsibleSection>
 
-      <CollapsibleSection
-        title="Нэхэмжлэл"
-        icon={<Receipt className="h-4 w-4" />}
-      >
-        <PatientInvoices patientId={patient.id} />
-      </CollapsibleSection>
+      {role !== "nurse" && (
+        <CollapsibleSection
+          title="Нэхэмжлэл"
+          icon={<Receipt className="h-4 w-4" />}
+        >
+          <PatientInvoices patientId={patient.id} />
+        </CollapsibleSection>
+      )}
 
       <div className="text-xs text-muted-foreground">
         Бүртгэсэн: {formatDateMn(patient.createdAt)} · Шинэчилсэн:{" "}

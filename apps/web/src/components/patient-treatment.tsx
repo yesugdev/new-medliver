@@ -327,6 +327,7 @@ function AddTreatmentForm({
 }) {
   const qc = useQueryClient();
   const { toast } = useToast();
+  const isNurse = useAuthStore((s) => s.user?.role) === "nurse";
   const [drugs, setDrugs] = useState<TreatmentDrug[]>([emptyDrug()]);
   const [modes, setModes] = useState<DrugMode[]>(["inventory"]);
   const [addToTasks, setAddToTasks] = useState(false);
@@ -378,7 +379,7 @@ function AddTreatmentForm({
     onSuccess: (record) => {
       toast({
         title: "Эмчилгээ хадгалагдлаа",
-        description: record.invoiceNumber
+        description: record.invoiceNumber && !isNurse
           ? `Нэхэмжлэл үүслээ: ${record.invoiceNumber}`
           : addToTasks ? "Эмчилгээний To-Do жагсаалтад нэмэгдлээ" : undefined,
         variant: "success",
@@ -479,8 +480,8 @@ function AddTreatmentForm({
         </div>
       </button>
 
-      {/* Төлбөрийн урьдчилсан тооцоо — зөвхөн үнэтэй агуулахын эм байвал */}
-      {subtotal > 0 && (
+      {/* Төлбөрийн урьдчилсан тооцоо — зөвхөн үнэтэй агуулахын эм байвал (сувилагчид харуулахгүй) */}
+      {subtotal > 0 && !isNurse && (
         <div className="rounded-xl border border-border bg-muted/20 px-4 py-3 space-y-1.5">
           <div className="flex items-center gap-2 text-sm font-semibold">
             <Receipt className="h-4 w-4 text-primary" />
@@ -568,6 +569,7 @@ function TreatmentCard({
   printConfig?: import("@his/shared").PrintConfig;
 }) {
   const [open, setOpen] = useState(false);
+  const isNurse = useAuthStore((s) => s.user?.role) === "nurse";
   const qc = useQueryClient();
   const { toast } = useToast();
 
@@ -668,7 +670,7 @@ function TreatmentCard({
                 <Printer className="h-3.5 w-3.5" />
                 Хэвлэх
               </Button>
-              {record.invoiceId && (
+              {record.invoiceId && !isNurse && (
                 <Link href={`/billing/${record.invoiceId}`}>
                   <Button variant="outline" size="sm" className="h-8 gap-1.5">
                     <Receipt className="h-3.5 w-3.5" />

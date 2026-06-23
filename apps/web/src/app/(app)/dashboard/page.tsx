@@ -82,6 +82,7 @@ const QUICK_ACTIONS: ActionDef[] = [
   { href: "/patients/new",   label: "Шинэ өвчтөн",  icon: Users,        roles: ["admin", "reception"] },
   { href: "/appointments/new", label: "Цаг захиалах", icon: CalendarClock, roles: ["admin", "reception"] },
   { href: "/queue",          label: "Дараалал",       icon: ListOrdered,  roles: ["admin", "doctor", "nurse"] },
+  { href: "/treatment-tasks", label: "Эмчилгээний ToDo", icon: ClipboardCheck, roles: ["admin", "doctor", "nurse"] },
   { href: "/billing/new",    label: "Нэхэмжлэл",     icon: Receipt,      roles: ["admin", "reception"] },
   { href: "/patients",       label: "Өвчтөнгүүд",    icon: Users,        roles: ["nurse"] },
   { href: "/settings",       label: "Тохиргоо",      icon: Settings,     roles: ["admin"] },
