@@ -70,3 +70,12 @@ export async function cancelInvoice(id: string): Promise<Invoice> {
   const { data } = await api.patch<Invoice>(`/invoices/${id}/cancel`);
   return data;
 }
+
+export async function deleteInvoice(id: string): Promise<void> {
+  await api.delete(`/invoices/${id}`);
+}
+
+export async function setInvoiceVat(id: string, vatRate: number): Promise<Invoice> {
+  const { data } = await api.patch<Invoice>(`/invoices/${id}/vat`, { vatRate });
+  return data;
+}

@@ -17,6 +17,11 @@ import {
   Search,
   Settings,
   ShieldCheck,
+  Wallet,
+  ClipboardCheck,
+  Pill,
+  AlertTriangle,
+  CalendarX2,
 } from "lucide-react";
 import { ROLE_LABELS_MN } from "@his/shared";
 import type { Role } from "@his/shared";
@@ -33,7 +38,7 @@ import { calculateAge, formatDateMn } from "@/lib/utils";
 const PAGE_SIZE = 10;
 
 /* ─── Role stat definitions ─────────────────────────────────────────── */
-type StatKey = "totalPatients" | "todayAppointments" | "waitingPatients" | "todayVisits" | "todayRevenue" | "newPatientsThisWeek";
+type StatKey = "totalPatients" | "todayAppointments" | "waitingPatients" | "todayVisits" | "todayRevenue" | "newPatientsThisWeek" | "totalRevenue" | "todayTreatments" | "drugValuation" | "drugLowStock" | "drugExpiring";
 
 interface StatDef {
   key: StatKey;
@@ -50,14 +55,19 @@ const ALL_STATS: StatDef[] = [
   { key: "todayVisits",         label: "Өнөөдрийн үзлэг",      icon: Activity,     tone: "text-emerald-600 bg-emerald-50" },
   { key: "todayRevenue",        label: "Өнөөдрийн орлого",     icon: Receipt,      tone: "text-rose-600 bg-rose-50",   format: "mnt" },
   { key: "newPatientsThisWeek", label: "7 хоногт шинэ өвчтөн", icon: UserPlus,     tone: "text-purple-600 bg-purple-50" },
+  { key: "totalRevenue",        label: "Нийт орлого",          icon: Wallet,       tone: "text-green-600 bg-green-50", format: "mnt" },
+  { key: "todayTreatments",     label: "Өнөөдөр хийх эмчилгээ", icon: ClipboardCheck, tone: "text-teal-600 bg-teal-50" },
+  { key: "drugValuation",       label: "Эмийн нөөц (үнэлгээ)",  icon: Pill,         tone: "text-cyan-600 bg-cyan-50", format: "mnt" },
+  { key: "drugLowStock",        label: "Дуусаж буй эм",        icon: AlertTriangle, tone: "text-amber-600 bg-amber-50" },
+  { key: "drugExpiring",        label: "Хугацаа дуусах цуврал", icon: CalendarX2,   tone: "text-rose-600 bg-rose-50" },
 ];
 
 const ROLE_STATS: Record<Role, StatKey[]> = {
-  admin:     ["totalPatients", "todayAppointments", "waitingPatients", "todayVisits", "todayRevenue", "newPatientsThisWeek"],
-  manager:   ["totalPatients", "todayAppointments", "waitingPatients", "todayVisits", "todayRevenue", "newPatientsThisWeek"],
+  admin:     ["todayRevenue", "totalRevenue", "totalPatients", "todayVisits", "drugValuation", "drugLowStock", "drugExpiring", "newPatientsThisWeek"],
+  manager:   ["totalPatients", "todayAppointments", "waitingPatients", "todayVisits", "todayRevenue", "totalRevenue", "drugValuation", "newPatientsThisWeek"],
   reception: ["totalPatients", "todayAppointments", "waitingPatients", "todayRevenue"],
-  doctor:    ["todayAppointments", "waitingPatients", "todayVisits"],
-  nurse:     ["waitingPatients", "todayVisits", "totalPatients"],
+  doctor:    ["todayTreatments", "todayAppointments", "waitingPatients", "todayVisits"],
+  nurse:     ["todayTreatments", "waitingPatients", "todayVisits", "totalPatients"],
 };
 
 /* ─── Role quick-action definitions ────────────────────────────────── */

@@ -13,6 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { listPatients } from "@/lib/patients-api";
 import { listServices, createInvoice } from "@/lib/billing-api";
+import { getHospitalConfig } from "@/lib/hospital-config-api";
 import { formatMnt } from "@/lib/format";
 import { extractApiError } from "@/lib/api";
 
@@ -33,6 +34,16 @@ export default function NewInvoicePage() {
   const [patientName, setPatientName] = useState("");
   const [items, setItems] = useState<LineItem[]>([]);
   const [discount, setDiscount] = useState(0);
+  const [applyVat, setApplyVat] = useState<boolean | null>(null);
+
+  const hospitalConfig = useQuery({
+    queryKey: ["hospital-config"],
+    queryFn: getHospitalConfig,
+    staleTime: 5 * 60_000,
+  });
+  const vatRate = hospitalConfig.data?.vatRate ?? 10;
+  // applyVat null үед config-ийн default-ыг ашиглана
+  const vatOn = applyVat ?? (hospitalConfig.data?.vatEnabled ?? false);
 
   const patients = useQuery({
     queryKey: ["patient-search", search],
@@ -56,6 +67,7 @@ export default function NewInvoicePage() {
           unitPrice: i.unitPrice,
         })),
         discount,
+        vatRate: vatOn ? vatRate : 0,
       }),
     onSuccess: (inv) => {
       toast({ title: "Нэхэмжлэл үүсгэлээ", description: inv.invoiceNumber, variant: "success" });
@@ -76,7 +88,9 @@ export default function NewInvoicePage() {
   };
 
   const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-  const total = Math.max(0, subtotal - discount);
+  const taxable = Math.max(0, subtotal - discount);
+  const vat = vatOn ? Math.round(taxable * (vatRate / 100)) : 0;
+  const total = taxable + vat;
   const canSubmit = patientId && items.length > 0;
 
   return (
@@ -263,6 +277,18 @@ export default function NewInvoicePage() {
               onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
               className="w-40 text-right"
             />
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={vatOn}
+                onChange={(e) => setApplyVat(e.target.checked)}
+                className="h-4 w-4 accent-primary rounded"
+              />
+              НӨАТ ({vatRate}%) бодох
+            </label>
+            <span className="font-medium">{vatOn ? formatMnt(vat) : "—"}</span>
           </div>
           <div className="flex items-center justify-between text-base font-semibold pt-3 border-t">
             <span>Нийт</span>

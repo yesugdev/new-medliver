@@ -35,6 +35,8 @@ export interface TreatmentDrug {
   perDose?: number;
   /** Хэрэглэх хугацаа (өдөр) */
   duration?: number;
+  /** Эмчилгээ хийх он сар өдрүүд (YYYY-MM-DD) — завсартай байж болно. ToDo хуваарь. */
+  scheduleDates?: string[];
   /** Тэмдэглэл */
   notes?: string;
 }

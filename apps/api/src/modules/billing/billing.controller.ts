@@ -17,7 +17,7 @@ import { CurrentUser } from "../../common/decorators/current-user.decorator";
 import { ServicesService } from "./services.service";
 import { InvoicesService } from "./invoices.service";
 import { CreateServiceDto, UpdateServiceDto } from "./dto/service.dto";
-import { CreateInvoiceDto, RecordPaymentDto } from "./dto/invoice.dto";
+import { CreateInvoiceDto, RecordPaymentDto, SetVatDto } from "./dto/invoice.dto";
 
 class ListInvoicesQuery {
   @IsOptional() patientId?: string;
@@ -93,9 +93,24 @@ export class InvoicesController {
     return this.invoices.recordPayment(id, dto, user);
   }
 
+  /** Төлөөгүй нэхэмжлэлд НӨАТ тохируулах */
+  @Patch(":id/vat")
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION)
+  setVat(@Param("id") id: string, @Body() dto: SetVatDto, @CurrentUser() user: AuthUser) {
+    return this.invoices.setVat(id, dto.vatRate, user);
+  }
+
   @Patch(":id/cancel")
-  @Roles(ROLES.ADMIN, ROLES.MANAGER)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION)
   cancel(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.invoices.cancel(id, user);
+  }
+
+  /** Нэхэмжлэлийг бүрэн устгах — зөвхөн admin */
+  @Delete(":id")
+  @Roles(ROLES.ADMIN)
+  async remove(@Param("id") id: string, @CurrentUser() user: AuthUser) {
+    await this.invoices.delete(id, user);
+    return { success: true };
   }
 }

@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
 import {
-  IsArray, IsBoolean, IsNumber, IsOptional, IsString,
+  IsArray, IsBoolean, IsDateString, IsNumber, IsOptional, IsString,
   MaxLength, Min, ValidateNested,
 } from "class-validator";
 
@@ -12,7 +12,8 @@ export class TreatmentDrugDto {
   @IsOptional() @IsNumber() @Min(0) frequency?: number;
   @IsOptional() @IsNumber() @Min(0) perDose?: number;
   @IsOptional() @IsNumber() @Min(0) duration?: number;
-  @IsOptional() @IsString() @MaxLength(1000) notes?: string;
+  @IsOptional() @IsArray() @IsDateString({}, { each: true }) scheduleDates?: string[];
+  @IsOptional() @IsString() @MaxLength(4000) notes?: string;
 }
 
 export class CreateTreatmentDto {

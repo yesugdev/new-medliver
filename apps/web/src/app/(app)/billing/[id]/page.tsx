@@ -2,8 +2,9 @@
 
 import { use, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Printer } from "lucide-react";
+import { ArrowLeft, Loader2, Printer, Trash2 } from "lucide-react";
 import {
   INVOICE_STATUS_LABELS_MN,
   PAYMENT_METHOD_LABELS_MN,
@@ -19,7 +20,8 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
-import { getInvoice, recordPayment, cancelInvoice } from "@/lib/billing-api";
+import { getInvoice, recordPayment, cancelInvoice, deleteInvoice, setInvoiceVat } from "@/lib/billing-api";
+import { getHospitalConfig } from "@/lib/hospital-config-api";
 import { getPatient } from "@/lib/patients-api";
 import { getPrintConfig } from "@/lib/print-config-api";
 import { openPrintWindow, buildPatientMeta, cfg, type PrintPatientInfo } from "@/lib/print-utils";
@@ -121,6 +123,7 @@ export default function InvoiceDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const qc = useQueryClient();
   const { toast } = useToast();
   const user = useAuthStore((s) => s.user);
@@ -166,6 +169,34 @@ export default function InvoiceDetailPage({
     },
   });
 
+  const deleteMut = useMutation({
+    mutationFn: () => deleteInvoice(id),
+    onSuccess: () => {
+      toast({ title: "Нэхэмжлэл устгагдлаа", variant: "success" });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+      router.replace("/billing");
+    },
+    onError: (err) =>
+      toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" }),
+  });
+
+  const { data: hospitalConfig } = useQuery({
+    queryKey: ["hospital-config"],
+    queryFn: getHospitalConfig,
+    staleTime: 5 * 60_000,
+  });
+
+  const vatMut = useMutation({
+    mutationFn: (rate: number) => setInvoiceVat(id, rate),
+    onSuccess: () => {
+      toast({ title: "НӨАТ шинэчлэгдлээ", variant: "success" });
+      qc.invalidateQueries({ queryKey: ["invoice", id] });
+      qc.invalidateQueries({ queryKey: ["invoices"] });
+    },
+    onError: (err) =>
+      toast({ title: "Алдаа", description: extractApiError(err), variant: "destructive" }),
+  });
+
   if (isLoading || !inv) {
     return (
       <div className="flex justify-center py-20">
@@ -178,8 +209,13 @@ export default function InvoiceDetailPage({
     user && (user.role === "admin" || user.role === "reception") &&
     inv.balance > 0 && inv.status !== "cancelled";
   const canCancel =
-    user && (user.role === "admin" || user.role === "manager") &&
+    user && ["admin", "manager", "reception"].includes(user.role) &&
     inv.status !== "cancelled" && inv.paid === 0;
+  const canDelete = user?.role === "admin";
+  const canEditVat =
+    user && ["admin", "manager", "reception"].includes(user.role) &&
+    inv.status !== "cancelled" && inv.paid === 0;
+  const defaultVatRate = inv.vatRate > 0 ? inv.vatRate : (hospitalConfig?.vatRate ?? 10);
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -273,9 +309,41 @@ export default function InvoiceDetailPage({
               </CardContent>
             </Card>
           )}
-          {canCancel && (
-            <Card><CardContent className="p-4">
-              <Button variant="destructive" className="w-full" size="sm" onClick={() => cancelMut.mutate()} disabled={cancelMut.isPending}>Нэхэмжлэл цуцлах</Button>
+          {canEditVat && (
+            <Card><CardContent className="p-4 space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={inv.vat > 0}
+                    disabled={vatMut.isPending}
+                    onChange={(e) => vatMut.mutate(e.target.checked ? defaultVatRate : 0)}
+                    className="h-4 w-4 accent-primary rounded"
+                  />
+                  НӨАТ ({defaultVatRate}%) бодох
+                </label>
+                {vatMut.isPending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
+              </div>
+              <p className="text-xs text-muted-foreground">Зөвхөн төлбөр төлөгдөөгүй үед өөрчилж болно.</p>
+            </CardContent></Card>
+          )}
+          {(canCancel || canDelete) && (
+            <Card><CardContent className="p-4 space-y-2">
+              {canCancel && (
+                <Button variant="outline" className="w-full" size="sm" onClick={() => cancelMut.mutate()} disabled={cancelMut.isPending}>
+                  Нэхэмжлэл цуцлах
+                </Button>
+              )}
+              {canDelete && (
+                <Button
+                  variant="destructive" className="w-full" size="sm"
+                  onClick={() => { if (confirm("Энэ нэхэмжлэлийг бүрмөсөн устгах уу?")) deleteMut.mutate(); }}
+                  disabled={deleteMut.isPending}
+                >
+                  {deleteMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                  Бүрмөсөн устгах
+                </Button>
+              )}
             </CardContent></Card>
           )}
           <Card>

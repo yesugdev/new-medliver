@@ -32,6 +32,7 @@ const emptyDrug = (): TreatmentDrug => ({
   frequency:      undefined,
   perDose:        undefined,
   duration:       undefined,
+  scheduleDates:  [],
   notes:          "",
 });
 
@@ -40,6 +41,7 @@ function DrugRow({
   drug,
   index,
   mode,
+  showDosing,
   onModeChange,
   onChange,
   onDelete,
@@ -49,6 +51,7 @@ function DrugRow({
   drug: TreatmentDrug;
   index: number;
   mode: DrugMode;
+  showDosing: boolean;
   onModeChange: (m: DrugMode) => void;
   onChange: (d: TreatmentDrug) => void;
   onDelete: () => void;
@@ -56,6 +59,24 @@ function DrugRow({
   inventoryDrugs: import("@his/shared").Drug[];
 }) {
   const up = (patch: Partial<TreatmentDrug>) => onChange({ ...drug, ...patch });
+
+  // Эмчилгээ хийх огноонууд (завсартай байж болно)
+  const dates = drug.scheduleDates ?? [];
+  const setDate    = (i: number, v: string) => up({ scheduleDates: dates.map((x, j) => (j === i ? v : x)) });
+  const addDate    = () => up({ scheduleDates: [...dates, ""] });
+  const removeDate = (i: number) => up({ scheduleDates: dates.filter((_, j) => j !== i) });
+  const fillConsecutive = () => {
+    const n = Math.max(drug.duration ?? 0, 0);
+    if (n < 1) return;
+    const today = new Date();
+    const p = (x: number) => String(x).padStart(2, "0");
+    up({
+      scheduleDates: Array.from({ length: n }, (_, i) => {
+        const dt = new Date(today); dt.setDate(today.getDate() + i);
+        return `${dt.getFullYear()}-${p(dt.getMonth() + 1)}-${p(dt.getDate())}`;
+      }),
+    });
+  };
 
   const handleInventorySelect = (drugId: string) => {
     const selected = inventoryDrugs.find((d) => d.id === drugId);
@@ -202,66 +223,95 @@ function DrugRow({
         </div>
       </div>
 
-      {/* Row 2: frequency | per-dose | duration | notes */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-4 pt-3 pb-4">
-        <div className="space-y-1">
-          <Label className="text-xs font-medium">Давтамж <span className="font-normal text-muted-foreground">(өдөрт)</span></Label>
-          <div className="relative">
-            <Input
-              type="number"
-              min={0}
-              value={drug.frequency ?? ""}
-              onChange={(e) =>
-                up({ frequency: e.target.value === "" ? undefined : Number(e.target.value) })
-              }
-              placeholder="Тоо оруулна уу"
-              className="h-9 text-sm pr-10"
-            />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
-              удаа
-            </span>
-          </div>
-        </div>
-        <div className="space-y-1">
-          <Label className="text-xs font-medium">1 удаа <span className="font-normal text-muted-foreground">(хэмжээ)</span></Label>
-          <Input
-            type="number"
-            min={0}
-            value={drug.perDose ?? ""}
-            onChange={(e) =>
-              up({ perDose: e.target.value === "" ? undefined : Number(e.target.value) })
-            }
-            placeholder="Тоо оруулна уу"
-            className="h-9 text-sm"
-          />
-        </div>
+      {/* Row 2: (давтамж | 1 удаа — сонголтоор) | хугацаа */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 px-4 pt-3">
+        {showDosing && (
+          <>
+            <div className="space-y-1">
+              <Label className="text-xs font-medium">Давтамж <span className="font-normal text-muted-foreground">(өдөрт)</span></Label>
+              <div className="relative">
+                <Input
+                  type="number" min={0}
+                  value={drug.frequency ?? ""}
+                  onChange={(e) => up({ frequency: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  placeholder="—"
+                  className="h-9 text-sm pr-10"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">удаа</span>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs font-medium">1 удаа <span className="font-normal text-muted-foreground">(хэмжээ)</span></Label>
+              <Input
+                type="number" min={0}
+                value={drug.perDose ?? ""}
+                onChange={(e) => up({ perDose: e.target.value === "" ? undefined : Number(e.target.value) })}
+                placeholder="—"
+                className="h-9 text-sm"
+              />
+            </div>
+          </>
+        )}
         <div className="space-y-1">
           <Label className="text-xs font-medium">Эмийг хэрэглэх хугацаа</Label>
           <div className="relative">
             <Input
-              type="number"
-              min={0}
+              type="number" min={0}
               value={drug.duration ?? ""}
-              onChange={(e) =>
-                up({ duration: e.target.value === "" ? undefined : Number(e.target.value) })
-              }
+              onChange={(e) => up({ duration: e.target.value === "" ? undefined : Number(e.target.value) })}
               placeholder="Тоо оруулна уу"
               className="h-9 text-sm pr-12"
             />
-            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
-              өдөр
-            </span>
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">өдөр</span>
           </div>
         </div>
-        <div className="space-y-1">
-          <Label className="text-xs font-medium">Тэмдэглэл</Label>
-          <Input
-            value={drug.notes ?? ""}
-            onChange={(e) => up({ notes: e.target.value })}
-            placeholder="Тэмдэглэл..."
-            className="h-9 text-sm"
-          />
+      </div>
+
+      {/* Эмчилгээ хийх огноонууд (ToDo — завсартай байж болно) */}
+      <div className="px-4 pt-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <Label className="text-xs font-medium">
+            Эмчилгээ хийх огноонууд <span className="font-normal text-muted-foreground">(ToDo — завсартай байж болно)</span>
+          </Label>
+          <div className="flex gap-3">
+            {drug.duration ? (
+              <button type="button" onClick={fillConsecutive} className="text-xs text-primary hover:underline">
+                {drug.duration} өдрөөр дараалан бөглөх
+              </button>
+            ) : null}
+            <button type="button" onClick={addDate} className="text-xs text-primary hover:underline">
+              + Огноо нэмэх
+            </button>
+          </div>
         </div>
+        {dates.length === 0 ? (
+          <p className="text-xs text-muted-foreground mt-1">Огноо сонгоогүй бол өнөөдрөөс хугацаагаар үүснэ.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2 mt-1.5">
+            {dates.map((d, i) => (
+              <div key={i} className="flex items-center gap-1">
+                <Input type="date" value={d} onChange={(e) => setDate(i, e.target.value)} className="h-8 text-sm w-40" />
+                <button type="button" onClick={() => removeDate(i)} className="text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Тэмдэглэл — томруулсан */}
+      <div className="px-4 pt-3 pb-4">
+        <Label className="text-xs font-medium">Тэмдэглэл</Label>
+        <textarea
+          value={drug.notes ?? ""}
+          onChange={(e) => up({ notes: e.target.value })}
+          placeholder="Дэлгэрэнгүй тэмдэглэл..."
+          rows={4}
+          maxLength={4000}
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-y focus:outline-none focus:ring-2 focus:ring-ring"
+        />
+        <div className="text-[10px] text-muted-foreground text-right">{(drug.notes ?? "").length} / 4000</div>
       </div>
     </div>
   );
@@ -280,6 +330,7 @@ function AddTreatmentForm({
   const [drugs, setDrugs] = useState<TreatmentDrug[]>([emptyDrug()]);
   const [modes, setModes] = useState<DrugMode[]>(["inventory"]);
   const [addToTasks, setAddToTasks] = useState(false);
+  const [showDosing, setShowDosing] = useState(true);
 
   const { data: inventoryDrugs = [] } = useQuery({
     queryKey: ["drugs-active"],
@@ -352,10 +403,21 @@ function AddTreatmentForm({
           <Pill className="h-4 w-4 text-primary" />
           Эмийн мэдээлэл
         </h3>
-        <Button variant="outline" size="sm" onClick={addDrug} className="h-8">
-          <Plus className="h-3.5 w-3.5" />
-          Эм нэмэх
-        </Button>
+        <div className="flex items-center gap-2">
+          <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={showDosing}
+              onChange={(e) => setShowDosing(e.target.checked)}
+              className="h-3.5 w-3.5 accent-primary rounded"
+            />
+            Давтамж / тун заах
+          </label>
+          <Button variant="outline" size="sm" onClick={addDrug} className="h-8">
+            <Plus className="h-3.5 w-3.5" />
+            Эм нэмэх
+          </Button>
+        </div>
       </div>
 
       {/* Drug rows */}
@@ -366,6 +428,7 @@ function AddTreatmentForm({
             drug={drug}
             index={i}
             mode={modes[i] ?? "custom"}
+            showDosing={showDosing}
             onModeChange={(m) => updateMode(i, m)}
             onChange={(d) => updateDrug(i, d)}
             onDelete={() => deleteDrug(i)}

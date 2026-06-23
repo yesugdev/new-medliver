@@ -20,6 +20,8 @@ export class TreatmentDrug {
   @Prop({ type: Number, min: 0 })         perDose?: number;
   /** Хэрэглэх хугацаа (өдөр) */
   @Prop({ type: Number, min: 0 })         duration?: number;
+  /** Эмчилгээ хийх он сар өдрүүд (YYYY-MM-DD) — ToDo хуваарь */
+  @Prop({ type: [String], default: [] })  scheduleDates?: string[];
   /** Тэмдэглэл */
   @Prop({ type: String, trim: true })     notes?: string;
 }

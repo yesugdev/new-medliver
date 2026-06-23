@@ -5,4 +5,14 @@ export interface DashboardStats {
   todayRevenue: number;
   todayVisits: number;
   newPatientsThisWeek: number;
+  /** Нийт орлого (төлсөн, цуцлаагүй) */
+  totalRevenue: number;
+  /** Өнөөдөр хийх эмчилгээ (ToDo, хүлээгдэж буй) */
+  todayTreatments: number;
+  /** Эмийн нөөцийн нийт үнэлгээ */
+  drugValuation: number;
+  /** Доод хэмжээнд хүрсэн эмийн тоо */
+  drugLowStock: number;
+  /** Дуусах/дууссан цувралын тоо */
+  drugExpiring: number;
 }

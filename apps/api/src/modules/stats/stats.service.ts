@@ -6,6 +6,8 @@ import { Patient, PatientDocument } from "../patients/patient.schema";
 import { AppointmentsService } from "../appointments/appointments.service";
 import { EmrService } from "../emr/emr.service";
 import { InvoicesService } from "../billing/invoices.service";
+import { DrugsService } from "../drugs/drugs.service";
+import { TreatmentTaskService } from "../treatment-tasks/treatment-task.service";
 
 @Injectable()
 export class StatsService {
@@ -14,6 +16,8 @@ export class StatsService {
     private readonly appointments: AppointmentsService,
     private readonly emr: EmrService,
     private readonly invoices: InvoicesService,
+    private readonly drugs: DrugsService,
+    private readonly treatmentTasks: TreatmentTaskService,
   ) {}
 
   async dashboard(): Promise<DashboardStats> {
@@ -21,12 +25,18 @@ export class StatsService {
     weekStart.setDate(weekStart.getDate() - 7);
     weekStart.setHours(0, 0, 0, 0);
 
-    const [totalPatients, todayAppt, todayRev, todayVisits, newWeek] = await Promise.all([
+    const [
+      totalPatients, todayAppt, todayRev, todayVisits, newWeek,
+      totalRev, todayTreat, drugReport,
+    ] = await Promise.all([
       this.patientModel.countDocuments({}),
       this.appointments.countToday(),
       this.invoices.todayRevenue(),
       this.emr.countToday(),
       this.patientModel.countDocuments({ createdAt: { $gte: weekStart } }),
+      this.invoices.totalRevenue(),
+      this.treatmentTasks.countToday(),
+      this.drugs.reports(),
     ]);
 
     return {
@@ -36,6 +46,11 @@ export class StatsService {
       todayRevenue: todayRev.paid,
       todayVisits,
       newPatientsThisWeek: newWeek,
+      totalRevenue: totalRev,
+      todayTreatments: todayTreat,
+      drugValuation: drugReport.totalValuation,
+      drugLowStock: drugReport.lowStock.length,
+      drugExpiring: drugReport.expiringSoon.length + drugReport.expired.length,
     };
   }
 }

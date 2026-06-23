@@ -44,6 +44,12 @@ export class CreateInvoiceDto {
   vatRate?: number;
 }
 
+export class SetVatDto {
+  @IsNumber()
+  @Min(0)
+  vatRate!: number;
+}
+
 export class RecordPaymentDto {
   @IsNumber()
   @Min(0.01)

@@ -249,6 +249,29 @@ export class InvoicesService {
     return this.toShared(doc);
   }
 
+  /** Төлөөгүй нэхэмжлэлд НӨАТ тохируулах (дахин тооцоолно) */
+  async setVat(id: string, vatRate: number, actor: AuthUser): Promise<SharedInvoice> {
+    const doc = await this.model.findById(id).exec();
+    if (!doc) throw new NotFoundException("Нэхэмжлэл олдсонгүй");
+    if (doc.status === "cancelled") throw new BadRequestException("Цуцалсан нэхэмжлэл");
+    if (doc.paid > 0) throw new BadRequestException("Төлбөр төлсөн нэхэмжлэлийн НӨАТ өөрчлөх боломжгүй");
+
+    const rate = Math.max(0, Math.min(vatRate, 100));
+    const { vat, total } = this.computeTotals(doc.subtotal, doc.discount, rate);
+    doc.vatRate = rate;
+    doc.vat = vat;
+    doc.total = total;
+    doc.balance = total - doc.paid;
+    await doc.save();
+
+    await this.audit.record({
+      actorId: actor.id, actorEmail: actor.email,
+      action: "invoice.set_vat", resource: "invoice", resourceId: id,
+      meta: { vatRate: rate, vat },
+    });
+    return this.toShared(doc);
+  }
+
   async cancel(id: string, actor: AuthUser): Promise<SharedInvoice> {
     const doc = await this.model.findById(id).exec();
     if (!doc) throw new NotFoundException("Нэхэмжлэл олдсонгүй");
@@ -270,6 +293,38 @@ export class InvoicesService {
       resourceId: doc._id.toString(),
     });
     return this.toShared(doc);
+  }
+
+  /** Нэхэмжлэлийг бүрэн устгах. Эмчилгээнээс үүссэн бол нөөцийг буцаана. */
+  async delete(id: string, actor: AuthUser): Promise<void> {
+    const doc = await this.model.findById(id).exec();
+    if (!doc) throw new NotFoundException("Нэхэмжлэл олдсонгүй");
+
+    if (doc.sourceTreatmentId) {
+      await this.drugsService
+        .reverseFEFO(doc.sourceTreatmentId.toString(), { id: actor.id, name: actor.fullName })
+        .catch(() => {});
+    }
+
+    await doc.deleteOne();
+
+    await this.audit.record({
+      actorId: actor.id,
+      actorEmail: actor.email,
+      action: "invoice.delete",
+      resource: "invoice",
+      resourceId: id,
+      meta: { invoiceNumber: doc.invoiceNumber },
+    });
+  }
+
+  /** Нийт орлого — цуцлаагүй нэхэмжлэлийн төлсөн дүн */
+  async totalRevenue(): Promise<number> {
+    const agg = await this.model.aggregate([
+      { $match: { status: { $ne: "cancelled" } } },
+      { $group: { _id: null, total: { $sum: "$paid" } } },
+    ]);
+    return agg[0]?.total ?? 0;
   }
 
   async todayRevenue(): Promise<{ total: number; paid: number; count: number }> {

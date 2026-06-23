@@ -108,6 +108,7 @@ export class TreatmentTaskService {
       frequency?: number;
       perDose?: number;
       duration?: number;
+      scheduleDates?: string[];
       notes?: string;
     }>;
     sourceRecordId: string;
@@ -115,28 +116,35 @@ export class TreatmentTaskService {
   }): Promise<void> {
     const { patientId, patientName, patientCode, registerNumber, drugs, sourceRecordId, actor } = params;
     const today = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const fmt = (dt: Date) => `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}`;
 
     const docs = drugs.flatMap((d) => {
-      const days = Math.max(d.duration ?? 1, 1);
-      return Array.from({ length: days }, (_, i) => {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        return {
-          patientId:     new Types.ObjectId(patientId),
-          patientName,
-          patientCode,
-          registerNumber,
-          drugName:      d.drugName,
-          route:         d.route,
-          frequency:     d.frequency,
-          perDose:       d.perDose,
-          notes:         d.notes,
-          scheduledDate: date.toISOString().slice(0, 10),
-          sourceRecordId: new Types.ObjectId(sourceRecordId),
-          createdById:   new Types.ObjectId(actor.id),
-          createdByName: actor.fullName ?? actor.email,
-        };
-      });
+      // Тохируулсан огноонууд (завсартай байж болно), эс бөгөөс өнөөдрөөс duration хоног дараалан
+      const picked = (d.scheduleDates ?? []).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x));
+      const dates: string[] = picked.length > 0
+        ? picked
+        : Array.from({ length: Math.max(d.duration ?? 1, 1) }, (_, i) => {
+            const dt = new Date(today);
+            dt.setDate(today.getDate() + i);
+            return fmt(dt);
+          });
+
+      return dates.map((scheduledDate) => ({
+        patientId:     new Types.ObjectId(patientId),
+        patientName,
+        patientCode,
+        registerNumber,
+        drugName:      d.drugName,
+        route:         d.route,
+        frequency:     d.frequency,
+        perDose:       d.perDose,
+        notes:         d.notes,
+        scheduledDate,
+        sourceRecordId: new Types.ObjectId(sourceRecordId),
+        createdById:   new Types.ObjectId(actor.id),
+        createdByName: actor.fullName ?? actor.email,
+      }));
     });
 
     if (docs.length > 0) {
@@ -167,5 +175,10 @@ export class TreatmentTaskService {
 
   async delete(id: string): Promise<void> {
     await this.model.findByIdAndDelete(id).exec();
+  }
+
+  /** Өнөөдөр хийх (хүлээгдэж буй) эмчилгээний тоо */
+  async countToday(): Promise<number> {
+    return this.model.countDocuments({ scheduledDate: todayStr(), status: "pending" });
   }
 }
