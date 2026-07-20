@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { LogOut, UserCircle, Search, Loader2, User } from "lucide-react";
+import { LogOut, UserCircle, Search, Loader2, User, Menu } from "lucide-react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
@@ -81,7 +81,7 @@ function PatientQuickSearch() {
   }
 
   return (
-    <div ref={boxRef} className="relative w-72">
+    <div ref={boxRef} className="relative w-full max-w-[300px] sm:w-72">
       {/* Input */}
       <div className="relative flex items-center">
         {loading
@@ -142,7 +142,7 @@ function PatientQuickSearch() {
 }
 
 /* ─── Header ─────────────────────────────────────────────────────── */
-export function AppHeader({ user }: { user: AuthUser }) {
+export function AppHeader({ user, onOpenMobile }: { user: AuthUser; onOpenMobile?: () => void }) {
   const router = useRouter();
   const logout = useAuthStore((s) => s.logout);
 
@@ -162,19 +162,29 @@ export function AppHeader({ user }: { user: AuthUser }) {
   };
 
   return (
-    <header className="h-16 bg-white border-b border-border flex items-center justify-between px-6 sticky top-0 z-20">
-      {/* Left: date */}
-      <div className="text-sm text-muted-foreground hidden md:block">
-        {formatMnDate(new Date())}
+    <header className="h-16 bg-white border-b border-border flex items-center justify-between px-3 sm:px-6 sticky top-0 z-20 gap-2">
+      {/* Left: mobile menu + date */}
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={onOpenMobile}
+          aria-label="Цэс нээх"
+          className="lg:hidden h-9 w-9 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className="text-sm text-muted-foreground hidden md:block">
+          {formatMnDate(new Date())}
+        </div>
       </div>
 
       {/* Center: search */}
-      <div className="flex-1 flex justify-center px-4 md:px-8">
+      <div className="flex-1 min-w-0 flex justify-center px-1 sm:px-4 md:px-8">
         <PatientQuickSearch />
       </div>
 
       {/* Right: user + logout */}
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
         <Link
           href="/profile"
           className="flex items-center gap-2 rounded-lg px-2 py-1 hover:bg-muted/50 transition-colors"
