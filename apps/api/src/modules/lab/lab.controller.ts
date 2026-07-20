@@ -12,6 +12,7 @@ import { CreateLabOrderDto } from "./dto/create-lab-order.dto";
 import { RecordResultsDto } from "./dto/record-results.dto";
 import { QuickResultDto } from "./dto/quick-result.dto";
 import { ListOrdersDto } from "./dto/list-orders.dto";
+import { UpdateOrderDateDto } from "./dto/update-order-date.dto";
 
 /* ── Test catalog (admin) ──────────────────────────────────────────── */
 @Controller("lab/tests")
@@ -96,5 +97,16 @@ export class LabOrdersController {
     @CurrentUser() user: AuthUser,
   ) {
     return this.svc.deleteResult(id, testId, user);
+  }
+
+  /** Захиалгын огноог засах — зөвхөн admin */
+  @Patch(":id/date")
+  @Roles(ROLES.ADMIN)
+  updateDate(
+    @Param("id") id: string,
+    @Body() dto: UpdateOrderDateDto,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.svc.updateOrderDate(id, dto, user);
   }
 }

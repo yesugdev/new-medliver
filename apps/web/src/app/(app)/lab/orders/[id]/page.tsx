@@ -26,7 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { useAuthStore } from "@/stores/auth-store";
-import { getLabOrder, recordLabResults, cancelLabOrder, deleteLabResult, listLabTests } from "@/lib/lab-api";
+import { getLabOrder, recordLabResults, cancelLabOrder, deleteLabResult, updateLabOrderDate, listLabTests } from "@/lib/lab-api";
 import { printRequisition } from "@/lib/lab-print";
 import { LAB_ORDER_TONE, LAB_INTERP_TONE } from "@/lib/status-tones";
 import { extractApiError } from "@/lib/api";
@@ -268,6 +268,8 @@ export default function LabOrderDetailPage() {
   const [resultValues, setResultValues] = useState<Record<string, string>>({});
   const [adminEditMode, setAdminEditMode] = useState(false);
   const [deletingTestId, setDeletingTestId] = useState<string | null>(null);
+  const [editingDate, setEditingDate] = useState(false);
+  const [dateInput, setDateInput] = useState("");
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["lab-order", id],
@@ -337,6 +339,24 @@ export default function LabOrderDetailPage() {
     onError: (e) =>
       toast({ title: "Алдаа", description: extractApiError(e), variant: "destructive" }),
     onSettled: () => setDeletingTestId(null),
+  });
+
+  const updateDate = useMutation({
+    mutationFn: () => {
+      const [yy, mm, dd] = dateInput.split("-").map(Number);
+      const now = new Date();
+      const stamp = new Date(yy, mm - 1, dd, now.getHours(), now.getMinutes(), now.getSeconds());
+      return updateLabOrderDate(id, stamp.toISOString());
+    },
+    onSuccess: () => {
+      toast({ title: "Огноо амжилттай шинэчлэгдлээ.", variant: "success" });
+      setEditingDate(false);
+      qc.invalidateQueries({ queryKey: ["lab-order", id] });
+      qc.invalidateQueries({ queryKey: ["lab-orders"] });
+      qc.invalidateQueries({ queryKey: ["lab-orders-by-patient"] });
+    },
+    onError: (e) =>
+      toast({ title: "Алдаа", description: extractApiError(e), variant: "destructive" }),
   });
 
   const cancelOrder = useMutation({
@@ -455,7 +475,6 @@ export default function LabOrderDetailPage() {
           { label: "Өвчтөн",    value: order.patientName,                href: `/patients/${order.patientId}` },
           { label: "Код",       value: order.patientCode,                 mono: true },
           { label: "Эмч",       value: order.doctorName },
-          { label: "Огноо",     value: formatTimeMn(order.orderedAt),    mono: true },
           ...(order.labName ? [{ label: "Эмнэлэг", value: order.labName }] : []),
         ].map((info) => (
           <div key={info.label} className="bg-muted/30 rounded-lg px-3 py-2.5">
@@ -472,6 +491,55 @@ export default function LabOrderDetailPage() {
             )}
           </div>
         ))}
+
+        {/* Огноо — admin засварлах боломжтой */}
+        <div className="bg-muted/30 rounded-lg px-3 py-2.5">
+          <div className="text-[11px] text-muted-foreground">Огноо</div>
+          {editingDate ? (
+            <div className="flex items-center gap-1 mt-0.5">
+              <Input
+                type="date"
+                value={dateInput}
+                onChange={(e) => setDateInput(e.target.value)}
+                className="h-7 text-xs"
+              />
+              <button
+                type="button"
+                onClick={() => updateDate.mutate()}
+                disabled={!dateInput || updateDate.isPending}
+                aria-label="Хадгалах"
+                className="h-7 w-7 shrink-0 flex items-center justify-center rounded-md text-emerald-600 hover:bg-emerald-50 disabled:opacity-50"
+              >
+                {updateDate.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle2 className="h-3.5 w-3.5" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setEditingDate(false)}
+                aria-label="Болих"
+                className="h-7 w-7 shrink-0 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted"
+              >
+                <XCircle className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="text-sm font-medium font-mono">{formatTimeMn(order.orderedAt)}</span>
+              {isAdmin && order.status !== "cancelled" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDateInput(order.orderedAt.slice(0, 10));
+                    setEditingDate(true);
+                  }}
+                  aria-label="Огноо засах"
+                  className="text-muted-foreground hover:text-primary"
+                >
+                  <Pencil className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Progress */}

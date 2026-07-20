@@ -80,6 +80,11 @@ export async function deleteLabResult(orderId: string, testId: string): Promise<
   return data;
 }
 
+export async function updateLabOrderDate(orderId: string, date: string): Promise<LabOrder> {
+  const { data } = await api.patch<LabOrder>(`/lab/orders/${orderId}/date`, { date });
+  return data;
+}
+
 export async function quickLabResult(payload: QuickLabResultInput): Promise<LabOrder> {
   const { data } = await api.post<LabOrder>("/lab/orders/quick", payload);
   return data;

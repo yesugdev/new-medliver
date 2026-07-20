@@ -17,6 +17,7 @@ import { CreateLabOrderDto } from "./dto/create-lab-order.dto";
 import { RecordResultsDto } from "./dto/record-results.dto";
 import { QuickResultDto } from "./dto/quick-result.dto";
 import { ListOrdersDto } from "./dto/list-orders.dto";
+import { UpdateOrderDateDto } from "./dto/update-order-date.dto";
 
 /* ─── Interpretation helper ─────────────────────────────────────────── */
 function autoInterpret(
@@ -420,6 +421,31 @@ export class LabService {
     await this.audit.record({
       actorId: actor.id, actorEmail: actor.email,
       action: "lab_order.result_deleted", resource: "lab_order", resourceId: orderId,
+    });
+
+    const [result] = await this.hydrateOrders([doc]);
+    return result;
+  }
+
+  /** Захиалгын огноог засах — хариутай тестүүдийн бүртгэсэн огноог ч хамт шинэчилнэ (зөвхөн admin) */
+  async updateOrderDate(orderId: string, dto: UpdateOrderDateDto, actor: AuthUser): Promise<SharedOrder> {
+    const doc = await this.orderModel.findById(orderId).exec();
+    if (!doc) throw new NotFoundException("Захиалга олдсонгүй");
+    if (doc.status === "cancelled")
+      throw new BadRequestException("Цуцлагдсан захиалгын огноог өөрчлөх боломжгүй");
+
+    const newDate = new Date(dto.date);
+    if (isNaN(newDate.getTime())) throw new BadRequestException("Огноо буруу байна");
+
+    doc.orderedAt = newDate;
+    for (const item of doc.items) {
+      if (item.status === "resulted") item.resultedAt = newDate;
+    }
+    await doc.save();
+
+    await this.audit.record({
+      actorId: actor.id, actorEmail: actor.email,
+      action: "lab_order.date_updated", resource: "lab_order", resourceId: orderId,
     });
 
     const [result] = await this.hydrateOrders([doc]);
