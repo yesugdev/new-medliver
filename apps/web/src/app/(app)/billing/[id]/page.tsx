@@ -266,7 +266,7 @@ export default function InvoiceDetailPage({
               onClick={() => printThermalInvoice(inv, printConfig, patientPrintInfo, receiptWidth)}
             >
               <Printer className="h-4 w-4" />
-              Тасалбар
+              XPrinter
             </Button>
           </div>
         </div>

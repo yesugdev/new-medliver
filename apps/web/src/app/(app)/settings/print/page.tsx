@@ -474,12 +474,12 @@ export default function PrintSettingsPage() {
       {/* Thermal receipt */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Тасалбар хэвлэх (Thermal receipt)</CardTitle>
+          <CardTitle className="text-base">XPrinter хэвлэх (Thermal receipt)</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
             Xprinter төрлийн (XP-58, XP-Q200, XP-V320, XP-N160I гэх мэт) тасалбар хэвлэгчид зориулсан
-            өргөн. Нэхэмжлэлийн дэлгэц дээрх &quot;Тасалбар&quot; товч энэ өргөнөөр анхдагчаар нээгдэнэ.
+            өргөн. Нэхэмжлэлийн дэлгэц дээрх &quot;XPrinter&quot; товч энэ өргөнөөр анхдагчаар нээгдэнэ.
           </p>
           <div className="flex gap-1 max-w-xs">
             {RECEIPT_WIDTHS.map((w) => (
@@ -494,7 +494,7 @@ export default function PrintSettingsPage() {
           </div>
           <Button variant="outline" size="sm" onClick={handleReceiptPreview}>
             <Eye className="h-3.5 w-3.5" />
-            Тасалбар Preview
+            XPrinter Preview
           </Button>
         </CardContent>
       </Card>
