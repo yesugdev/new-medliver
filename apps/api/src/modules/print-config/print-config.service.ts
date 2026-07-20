@@ -31,6 +31,7 @@ export class PrintConfigService {
       pageSize:         doc.pageSize as "A4" | "A5",
       pageOrientation:  doc.pageOrientation as "portrait" | "landscape",
       footerNote:           doc.footerNote,
+      receiptWidth:         doc.receiptWidth as "58" | "76" | "80",
       showPatientCode:      doc.showPatientCode,
       showPatientRegister:  doc.showPatientRegister,
       showPatientAge:       doc.showPatientAge,

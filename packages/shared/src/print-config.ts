@@ -16,6 +16,9 @@ export interface PrintConfig {
   pageOrientation: "portrait" | "landscape";
   footerNote?: string;
 
+  /* ── Thermal receipt (58мм / 76мм / 80мм) тохиргоо ── */
+  receiptWidth: "58" | "76" | "80";
+
   /* ── Өвчтөний мэдээллийн харагдах талбарууд ── */
   showPatientCode: boolean;
   showPatientRegister: boolean;
@@ -46,6 +49,7 @@ export interface UpdatePrintConfigInput {
   pageSize?: "A4" | "A5";
   pageOrientation?: "portrait" | "landscape";
   footerNote?: string;
+  receiptWidth?: "58" | "76" | "80";
   showPatientCode?: boolean;
   showPatientRegister?: boolean;
   showPatientAge?: boolean;

@@ -23,6 +23,7 @@ class UpdatePrintConfigDto {
   @IsOptional() @IsIn(["A4", "A5"])           pageSize?: "A4" | "A5";
   @IsOptional() @IsIn(["portrait", "landscape"]) pageOrientation?: "portrait" | "landscape";
   @IsOptional() @IsString() @MaxLength(200)  footerNote?: string;
+  @IsOptional() @IsIn(["58", "76", "80"])     receiptWidth?: "58" | "76" | "80";
   @IsOptional() @IsBoolean() showPatientCode?: boolean;
   @IsOptional() @IsBoolean() showPatientRegister?: boolean;
   @IsOptional() @IsBoolean() showPatientAge?: boolean;

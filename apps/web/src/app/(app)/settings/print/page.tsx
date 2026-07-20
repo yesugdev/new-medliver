@@ -11,9 +11,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/components/ui/toast";
 import { getPrintConfig, updatePrintConfig } from "@/lib/print-config-api";
 import { openPrintWindow } from "@/lib/print-utils";
+import { printThermalInvoice, THERMAL_WIDTH_LABELS, type ThermalWidthKey } from "@/lib/thermal-print";
 import { extractApiError } from "@/lib/api";
+import type { Invoice } from "@his/shared";
 
 const PAGE_SIZES = ["A4", "A5"] as const;
+const RECEIPT_WIDTHS: ThermalWidthKey[] = ["58", "76", "80"];
 const ORIENTATIONS = [
   { value: "portrait",  label: "Босоо (Portrait)" },
   { value: "landscape", label: "Хэвтээ (Landscape)" },
@@ -83,6 +86,7 @@ export default function PrintSettingsPage() {
   const [pageSize,         setPageSize]         = useState<"A4" | "A5">("A4");
   const [pageOrientation,  setPageOrientation]  = useState<"portrait" | "landscape">("portrait");
   const [footerNote,       setFooterNote]       = useState("");
+  const [receiptWidth,     setReceiptWidth]     = useState<ThermalWidthKey>("80");
 
   /* Patient fields */
   const [showPatientCode,      setShowPatientCode]      = useState(true);
@@ -113,6 +117,7 @@ export default function PrintSettingsPage() {
     setPageSize((saved.pageSize as "A4" | "A5") ?? "A4");
     setPageOrientation((saved.pageOrientation as "portrait" | "landscape") ?? "portrait");
     setFooterNote(saved.footerNote ?? "");
+    setReceiptWidth((saved.receiptWidth as ThermalWidthKey) ?? "80");
     setShowPatientCode(saved.showPatientCode ?? true);
     setShowPatientRegister(saved.showPatientRegister ?? true);
     setShowPatientAge(saved.showPatientAge ?? true);
@@ -166,6 +171,7 @@ export default function PrintSettingsPage() {
         headerBgColor, headerTextColor,
         fontSize, pageSize, pageOrientation,
         footerNote: footerNote || undefined,
+        receiptWidth,
         showPatientCode, showPatientRegister, showPatientAge,
         showPatientGender, showPatientPhone, showPatientAddress,
         showPatientBloodType, showPatientBirthDate, showPatientDoctor,
@@ -211,6 +217,33 @@ export default function PrintSettingsPage() {
       </table>`,
       previewConfig,
     );
+  };
+
+  const handleReceiptPreview = () => {
+    const sample: Invoice = {
+      id: "preview",
+      invoiceNumber: "INV-2025-00123",
+      patientId: "preview",
+      patientName: "Батбаяр Дорж",
+      patientCode: "P-000123",
+      items: [
+        { name: "Үзлэг", quantity: 1, unitPrice: 50000, total: 50000 },
+        { name: "Ерөнхий цусны шинжилгээ (CBC)", quantity: 2, unitPrice: 30000, total: 60000 },
+      ],
+      subtotal: 110000,
+      discount: 0,
+      vat: 11000,
+      vatRate: 10,
+      total: 121000,
+      paid: 121000,
+      balance: 0,
+      status: "paid",
+      payments: [{ amount: 121000, method: "cash", paidAt: new Date().toISOString() }],
+      issuedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    printThermalInvoice(sample, previewConfig, undefined, receiptWidth);
   };
 
   if (isLoading) {
@@ -437,6 +470,34 @@ export default function PrintSettingsPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Thermal receipt */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Тасалбар хэвлэх (Thermal receipt)</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Xprinter төрлийн (XP-58, XP-Q200, XP-V320, XP-N160I гэх мэт) тасалбар хэвлэгчид зориулсан
+            өргөн. Нэхэмжлэлийн дэлгэц дээрх &quot;Тасалбар&quot; товч энэ өргөнөөр анхдагчаар нээгдэнэ.
+          </p>
+          <div className="flex gap-1 max-w-xs">
+            {RECEIPT_WIDTHS.map((w) => (
+              <button
+                key={w} type="button"
+                onClick={() => setReceiptWidth(w)}
+                className={`flex-1 py-1.5 rounded-md border text-sm font-medium transition-colors ${receiptWidth === w ? "bg-primary text-primary-foreground border-primary" : "border-border text-muted-foreground hover:bg-muted"}`}
+              >
+                {THERMAL_WIDTH_LABELS[w]}
+              </button>
+            ))}
+          </div>
+          <Button variant="outline" size="sm" onClick={handleReceiptPreview}>
+            <Eye className="h-3.5 w-3.5" />
+            Тасалбар Preview
+          </Button>
+        </CardContent>
+      </Card>
 
       {/* Patient fields */}
       <Card>

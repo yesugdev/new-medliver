@@ -9,6 +9,7 @@ export const DEFAULT_PRINT_CONFIG: Omit<PrintConfig, "id" | "updatedAt"> = {
   fontSize:             13,
   pageSize:             "A4",
   pageOrientation:      "portrait",
+  receiptWidth:         "80",
   showPatientCode:      true,
   showPatientRegister:  true,
   showPatientAge:       true,

@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -25,6 +25,7 @@ import { getHospitalConfig } from "@/lib/hospital-config-api";
 import { getPatient } from "@/lib/patients-api";
 import { getPrintConfig } from "@/lib/print-config-api";
 import { openPrintWindow, buildPatientMeta, cfg, type PrintPatientInfo } from "@/lib/print-utils";
+import { printThermalInvoice, THERMAL_WIDTH_LABELS, type ThermalWidthKey } from "@/lib/thermal-print";
 import { INVOICE_TONE } from "@/lib/status-tones";
 import { formatMnt } from "@/lib/format";
 import { formatDateTimeMn } from "@/lib/utils";
@@ -129,6 +130,7 @@ export default function InvoiceDetailPage({
   const user = useAuthStore((s) => s.user);
   const [amount, setAmount] = useState(0);
   const [method, setMethod] = useState<PaymentMethod>("cash");
+  const [receiptWidth, setReceiptWidth] = useState<ThermalWidthKey>("80");
 
   const { data: inv, isLoading } = useQuery({
     queryKey: ["invoice", id],
@@ -147,6 +149,10 @@ export default function InvoiceDetailPage({
     enabled: !!inv?.patientId,
     staleTime: 10 * 60_000,
   });
+
+  useEffect(() => {
+    if (printConfig?.receiptWidth) setReceiptWidth(printConfig.receiptWidth);
+  }, [printConfig?.receiptWidth]);
 
   const payMut = useMutation({
     mutationFn: () => recordPayment(id, { amount, method }),
@@ -216,6 +222,17 @@ export default function InvoiceDetailPage({
     user && ["admin", "manager", "reception"].includes(user.role) &&
     inv.status !== "cancelled" && inv.paid === 0;
   const defaultVatRate = inv.vatRate > 0 ? inv.vatRate : (hospitalConfig?.vatRate ?? 10);
+  const patientPrintInfo: PrintPatientInfo | undefined = patientData ? {
+    name: `${patientData.lastName} ${patientData.firstName}`,
+    patientCode: patientData.patientCode,
+    registerNumber: patientData.registerNumber,
+    birthDate: patientData.birthDate,
+    gender: patientData.gender,
+    phone: patientData.phone,
+    address: patientData.address,
+    bloodType: patientData.bloodType,
+    attendingDoctorName: patientData.attendingDoctorName,
+  } : undefined;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -229,22 +246,29 @@ export default function InvoiceDetailPage({
             <h1 className="text-2xl font-semibold tracking-tight">Нэхэмжлэл</h1>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           <Badge tone={INVOICE_TONE[inv.status]}>{INVOICE_STATUS_LABELS_MN[inv.status]}</Badge>
-          <Button variant="outline" size="sm" onClick={() => printInvoice(inv, printConfig, patientData ? {
-            name: `${patientData.lastName} ${patientData.firstName}`,
-            patientCode: patientData.patientCode,
-            registerNumber: patientData.registerNumber,
-            birthDate: patientData.birthDate,
-            gender: patientData.gender,
-            phone: patientData.phone,
-            address: patientData.address,
-            bloodType: patientData.bloodType,
-            attendingDoctorName: patientData.attendingDoctorName,
-          } : undefined)}>
+          <Button variant="outline" size="sm" onClick={() => printInvoice(inv, printConfig, patientPrintInfo)}>
             <Printer className="h-4 w-4" />
-            Хэвлэх
+            Хэвлэх (А4)
           </Button>
+          <div className="flex items-center gap-1">
+            <Select value={receiptWidth} onValueChange={(v) => setReceiptWidth(v as ThermalWidthKey)}>
+              <SelectTrigger className="h-9 w-[92px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {(Object.keys(THERMAL_WIDTH_LABELS) as ThermalWidthKey[]).map((w) => (
+                  <SelectItem key={w} value={w}>{THERMAL_WIDTH_LABELS[w]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              variant="outline" size="sm"
+              onClick={() => printThermalInvoice(inv, printConfig, patientPrintInfo, receiptWidth)}
+            >
+              <Printer className="h-4 w-4" />
+              Тасалбар
+            </Button>
+          </div>
         </div>
       </div>
 

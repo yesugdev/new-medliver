@@ -50,6 +50,9 @@ export class PrintConfigEntity {
   @Prop({ type: String })
   footerNote?: string;
 
+  @Prop({ type: String, enum: ["58", "76", "80"], default: "80" })
+  receiptWidth!: string;
+
   @Prop({ type: Boolean, default: true })  showPatientCode!: boolean;
   @Prop({ type: Boolean, default: true })  showPatientRegister!: boolean;
   @Prop({ type: Boolean, default: true })  showPatientAge!: boolean;
