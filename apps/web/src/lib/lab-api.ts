@@ -75,6 +75,11 @@ export async function cancelLabOrder(id: string): Promise<LabOrder> {
   return data;
 }
 
+export async function deleteLabResult(orderId: string, testId: string): Promise<LabOrder> {
+  const { data } = await api.delete<LabOrder>(`/lab/orders/${orderId}/results/${testId}`);
+  return data;
+}
+
 export async function quickLabResult(payload: QuickLabResultInput): Promise<LabOrder> {
   const { data } = await api.post<LabOrder>("/lab/orders/quick", payload);
   return data;

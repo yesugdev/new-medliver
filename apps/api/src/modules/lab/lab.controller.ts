@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, Param, Patch, Post, Query,
+  Body, Controller, Delete, Get, Param, Patch, Post, Query,
 } from "@nestjs/common";
 import type { AuthUser } from "@his/shared";
 import { ROLES } from "@his/shared";
@@ -85,5 +85,16 @@ export class LabOrdersController {
   @Roles(ROLES.ADMIN, ROLES.DOCTOR)
   cancel(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.svc.cancelOrder(id, user);
+  }
+
+  /** Нэг тестийн хариуг устгах — зөвхөн admin */
+  @Delete(":id/results/:testId")
+  @Roles(ROLES.ADMIN)
+  deleteResult(
+    @Param("id") id: string,
+    @Param("testId") testId: string,
+    @CurrentUser() user: AuthUser,
+  ) {
+    return this.svc.deleteResult(id, testId, user);
   }
 }

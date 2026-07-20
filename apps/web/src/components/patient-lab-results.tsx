@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { FlaskConical, Loader2, Inbox, X, Check } from "lucide-react";
+import { FlaskConical, Loader2, Inbox, X, Check, Pencil } from "lucide-react";
 import {
   LAB_CATEGORY_LABELS_MN,
   type LabCategory,
@@ -64,6 +65,7 @@ interface ResultRec {
 
 /* ─── Нэг бүлгийн матриц хүснэгт ─────────────────────────────────────── */
 function GroupTable({ group, recs }: { group: string; recs: ResultRec[] }) {
+  const isAdmin = useAuthStore((s) => s.user?.role === "admin");
   // Баганууд = ялгаатай тест (sortOrder-аар)
   const tests = useMemo(() => {
     const map = new Map<string, ResultRec>();
@@ -122,7 +124,20 @@ function GroupTable({ group, recs }: { group: string; recs: ResultRec[] }) {
               const meta = metaByOrder(row.orderId);
               return (
                 <tr key={row.orderId} className={i % 2 ? "bg-muted/30" : "bg-white"}>
-                  <td className="px-3 py-1.5 font-mono sticky left-0 z-10 bg-inherit">{dt(row.ts)}</td>
+                  <td className="px-3 py-1.5 font-mono sticky left-0 z-10 bg-inherit">
+                    <div className="flex items-center gap-1.5">
+                      <span>{dt(row.ts)}</span>
+                      {isAdmin && (
+                        <Link
+                          href={`/lab/orders/${row.orderId}?from=patient`}
+                          title="Хариу засах / устгах"
+                          className="text-muted-foreground hover:text-primary"
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </Link>
+                      )}
+                    </div>
+                  </td>
                   {tests.map((t) => {
                     const r = cell.get(`${row.orderId}__${t.testId}`);
                     return (

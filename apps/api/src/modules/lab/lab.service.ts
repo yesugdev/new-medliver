@@ -394,6 +394,38 @@ export class LabService {
     return result;
   }
 
+  /** Нэг тестийн хариуг устгаж, дахин "хүлээгдэж буй" төлөвт оруулна (зөвхөн admin) */
+  async deleteResult(orderId: string, testId: string, actor: AuthUser): Promise<SharedOrder> {
+    const doc = await this.orderModel.findById(orderId).exec();
+    if (!doc) throw new NotFoundException("Захиалга олдсонгүй");
+
+    const item = doc.items.find((i) => i.testId.toString() === testId);
+    if (!item) throw new NotFoundException("Шинжилгээ олдсонгүй");
+    if (item.status === "cancelled")
+      throw new BadRequestException("Цуцлагдсан шинжилгээний хариуг устгах боломжгүй");
+    if (item.status !== "resulted")
+      throw new BadRequestException("Хариу оруулаагүй шинжилгээг устгах боломжгүй");
+
+    item.value          = undefined;
+    item.interpretation  = undefined;
+    item.notes           = undefined;
+    item.resultedAt      = undefined;
+    item.resultedById    = undefined;
+    item.resultedByName  = undefined;
+    item.status          = "ordered";
+
+    doc.status = computeOrderStatus(doc.items) as any;
+    await doc.save();
+
+    await this.audit.record({
+      actorId: actor.id, actorEmail: actor.email,
+      action: "lab_order.result_deleted", resource: "lab_order", resourceId: orderId,
+    });
+
+    const [result] = await this.hydrateOrders([doc]);
+    return result;
+  }
+
   async cancelOrder(id: string, actor: AuthUser): Promise<SharedOrder> {
     const doc = await this.orderModel.findById(id).exec();
     if (!doc) throw new NotFoundException("Захиалга олдсонгүй");

@@ -10,6 +10,7 @@ import { getPatient } from "@/lib/patients-api";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Loader2, CheckCircle2, FlaskConical, AlertTriangle, XCircle, Printer,
+  Pencil, Trash2,
 } from "lucide-react";
 import {
   LAB_ORDER_STATUS_LABELS_MN,
@@ -25,7 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { useAuthStore } from "@/stores/auth-store";
-import { getLabOrder, recordLabResults, cancelLabOrder, listLabTests } from "@/lib/lab-api";
+import { getLabOrder, recordLabResults, cancelLabOrder, deleteLabResult, listLabTests } from "@/lib/lab-api";
 import { printRequisition } from "@/lib/lab-print";
 import { LAB_ORDER_TONE, LAB_INTERP_TONE } from "@/lib/status-tones";
 import { extractApiError } from "@/lib/api";
@@ -138,11 +139,17 @@ function ResultRow({
   editable,
   value,
   onChange,
+  canDelete,
+  onDelete,
+  deleting,
 }: {
   item: LabOrderItem;
   editable: boolean;
   value: string;
   onChange: (v: string) => void;
+  canDelete?: boolean;
+  onDelete?: () => void;
+  deleting?: boolean;
 }) {
   const preview = value.trim()
     ? autoInterpret(value, item.referenceMin, item.referenceMax)
@@ -223,6 +230,21 @@ function ResultRow({
           </>
         ) : "—"}
       </td>
+      {canDelete && (
+        <td>
+          {item.status === "resulted" && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={deleting}
+              aria-label="Хариу устгах"
+              className="h-7 w-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50"
+            >
+              {deleting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}
+            </button>
+          )}
+        </td>
+      )}
     </tr>
   );
 }
@@ -244,6 +266,8 @@ export default function LabOrderDetailPage() {
   const user = useAuthStore((s) => s.user);
 
   const [resultValues, setResultValues] = useState<Record<string, string>>({});
+  const [adminEditMode, setAdminEditMode] = useState(false);
+  const [deletingTestId, setDeletingTestId] = useState<string | null>(null);
 
   const { data: order, isLoading } = useQuery({
     queryKey: ["lab-order", id],
@@ -283,13 +307,36 @@ export default function LabOrderDetailPage() {
       return recordLabResults(id, items);
     },
     onSuccess: () => {
-      toast({ title: "Хариу хадгалагдлаа", variant: "success" });
+      toast({
+        title: adminEditMode ? "Шинжилгээний хариу амжилттай шинэчлэгдлээ." : "Хариу хадгалагдлаа",
+        variant: "success",
+      });
+      setAdminEditMode(false);
       qc.invalidateQueries({ queryKey: ["lab-order", id] });
       qc.invalidateQueries({ queryKey: ["lab-orders"] });
       qc.invalidateQueries({ queryKey: ["lab-orders-by-patient"] });
     },
     onError: (e) =>
       toast({ title: "Алдаа", description: extractApiError(e), variant: "destructive" }),
+  });
+
+  const deleteResult = useMutation({
+    mutationFn: (testId: string) => deleteLabResult(id, testId),
+    onMutate: (testId: string) => setDeletingTestId(testId),
+    onSuccess: (_data, testId) => {
+      toast({ title: "Шинжилгээний хариу амжилттай устгагдлаа.", variant: "success" });
+      setResultValues((prev) => {
+        const next = { ...prev };
+        delete next[testId];
+        return next;
+      });
+      qc.invalidateQueries({ queryKey: ["lab-order", id] });
+      qc.invalidateQueries({ queryKey: ["lab-orders"] });
+      qc.invalidateQueries({ queryKey: ["lab-orders-by-patient"] });
+    },
+    onError: (e) =>
+      toast({ title: "Алдаа", description: extractApiError(e), variant: "destructive" }),
+    onSettled: () => setDeletingTestId(null),
   });
 
   const cancelOrder = useMutation({
@@ -304,10 +351,20 @@ export default function LabOrderDetailPage() {
   });
 
   const canEdit = user && ["admin","doctor"].includes(user.role);
-  const isEditable =
-    canEdit &&
-    order &&
+  const isAdmin = user?.role === "admin";
+  const normallyEditable =
+    !!canEdit &&
+    !!order &&
     (order.status === "ordered" || order.status === "partial");
+  const isEditable = normallyEditable || (isAdmin && adminEditMode);
+  const showAdminEditToggle =
+    isAdmin && !!order && order.status !== "cancelled" && !normallyEditable;
+
+  const handleDeleteResult = (item: LabOrderItem) => {
+    if (confirm("Та энэ шинжилгээний хариуг устгахдаа итгэлтэй байна уу? Энэ үйлдлийг буцаах боломжгүй.")) {
+      deleteResult.mutate(item.testId);
+    }
+  };
 
   const pendingCount = Object.values(resultValues).filter((v) => v.trim() !== "").length;
 
@@ -441,18 +498,31 @@ export default function LabOrderDetailPage() {
       <Card className="overflow-hidden">
         <CardHeader className="border-b border-border py-3 px-5 flex-row items-center justify-between gap-3">
           <CardTitle className="text-base">Шинжилгээний хариу</CardTitle>
-          {isEditable && (
-            <Button
-              size="sm"
-              onClick={() => saveResults.mutate()}
-              disabled={saveResults.isPending || pendingCount === 0}
-            >
-              {saveResults.isPending
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <CheckCircle2 className="h-4 w-4" />}
-              Хадгалах {pendingCount > 0 ? `(${pendingCount})` : ""}
-            </Button>
-          )}
+          <div className="flex items-center gap-2">
+            {showAdminEditToggle && (
+              <Button size="sm" variant="outline" onClick={() => setAdminEditMode(true)}>
+                <Pencil className="h-4 w-4" />
+                Засах
+              </Button>
+            )}
+            {isAdmin && adminEditMode && (
+              <Button size="sm" variant="ghost" onClick={() => setAdminEditMode(false)}>
+                Болих
+              </Button>
+            )}
+            {isEditable && (
+              <Button
+                size="sm"
+                onClick={() => saveResults.mutate()}
+                disabled={saveResults.isPending || pendingCount === 0}
+              >
+                {saveResults.isPending
+                  ? <Loader2 className="h-4 w-4 animate-spin" />
+                  : <CheckCircle2 className="h-4 w-4" />}
+                Хадгалах {pendingCount > 0 ? `(${pendingCount})` : ""}
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <div className="overflow-x-auto">
           <table className="data-table">
@@ -465,6 +535,7 @@ export default function LabOrderDetailPage() {
                 <th>Дүгнэлт</th>
                 <th>Статус</th>
                 <th>Бүртгэсэн</th>
+                {isAdmin && <th>Үйлдэл</th>}
               </tr>
             </thead>
             <tbody>
@@ -480,7 +551,7 @@ export default function LabOrderDetailPage() {
                   <React.Fragment key={grp || "__no_group__"}>
                     {grp && (
                       <tr className="bg-muted/40">
-                        <td colSpan={7} className="py-1.5 px-3 text-[11px] font-semibold text-muted-foreground">
+                        <td colSpan={isAdmin ? 8 : 7} className="py-1.5 px-3 text-[11px] font-semibold text-muted-foreground">
                           {grp}
                         </td>
                       </tr>
@@ -494,6 +565,9 @@ export default function LabOrderDetailPage() {
                         onChange={(v) =>
                           setResultValues((prev) => ({ ...prev, [item.testId]: v }))
                         }
+                        canDelete={isAdmin}
+                        onDelete={() => handleDeleteResult(item)}
+                        deleting={deletingTestId === item.testId}
                       />
                     ))}
                   </React.Fragment>
