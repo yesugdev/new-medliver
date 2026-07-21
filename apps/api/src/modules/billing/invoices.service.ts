@@ -74,12 +74,43 @@ export class InvoicesService {
     };
   }
 
+  /**
+   * Хамгийн сүүлийн дугаараас +1 хийж тооцоолно (count-ээр биш) — эс тэгвэл
+   * нэхэмжлэл устгагдсаны дараа count буурч, аль хэдийн ашиглагдсан дугаарыг
+   * дахин олгож E11000 duplicate key алдаа өгдөг байсан.
+   */
   private async generateInvoiceNumber(): Promise<string> {
     const year = new Date().getFullYear();
-    const count = await this.model.countDocuments({
-      invoiceNumber: { $regex: `^INV${year}-` },
-    });
-    return `INV${year}-${String(count + 1).padStart(5, "0")}`;
+    const prefix = `INV${year}-`;
+    const last = await this.model
+      .findOne({ invoiceNumber: { $regex: `^${prefix}` } })
+      .sort({ invoiceNumber: -1 })
+      .lean();
+    const seq = last
+      ? parseInt(last.invoiceNumber.replace(prefix, ""), 10) + 1
+      : 1;
+    return `${prefix}${String(seq).padStart(5, "0")}`;
+  }
+
+  private isDuplicateInvoiceNumber(err: unknown): boolean {
+    return !!err && typeof err === "object" && (err as any).code === 11000
+      && "keyPattern" in (err as any) && "invoiceNumber" in (err as any).keyPattern;
+  }
+
+  /** Давхар дугаарын race condition-оос хамгаалж, шаардлагатай бол дугаарыг дахин үүсгэж оролдоно */
+  private async createWithUniqueNumber(
+    buildFields: (invoiceNumber: string) => Record<string, any>,
+    attempts = 3,
+  ): Promise<InvoiceDocument> {
+    for (let i = 0; i < attempts; i++) {
+      const invoiceNumber = await this.generateInvoiceNumber();
+      try {
+        return await this.model.create(buildFields(invoiceNumber));
+      } catch (err) {
+        if (!this.isDuplicateInvoiceNumber(err) || i === attempts - 1) throw err;
+      }
+    }
+    throw new BadRequestException("Нэхэмжлэлийн дугаар үүсгэхэд алдаа гарлаа");
   }
 
   async create(dto: CreateInvoiceDto, actor: AuthUser): Promise<SharedInvoice> {
@@ -100,8 +131,7 @@ export class InvoicesService {
     const vatRate = dto.vatRate ?? 0;
     const { vat, total } = this.computeTotals(subtotal, discount, vatRate);
 
-    const invoiceNumber = await this.generateInvoiceNumber();
-    const created = await this.model.create({
+    const created = await this.createWithUniqueNumber((invoiceNumber) => ({
       invoiceNumber,
       patientId: new Types.ObjectId(dto.patientId),
       visitId: dto.visitId ? new Types.ObjectId(dto.visitId) : undefined,
@@ -117,7 +147,7 @@ export class InvoicesService {
       payments: [],
       issuedAt: new Date(),
       createdBy: actor.id,
-    });
+    }));
 
     await this.audit.record({
       actorId: actor.id,
@@ -125,7 +155,7 @@ export class InvoicesService {
       action: "invoice.create",
       resource: "invoice",
       resourceId: created._id.toString(),
-      meta: { invoiceNumber, total },
+      meta: { invoiceNumber: created.invoiceNumber, total },
     });
 
     return this.toShared(created);
@@ -152,8 +182,7 @@ export class InvoicesService {
     const discount = 0;
     const { vat, total } = this.computeTotals(subtotal, discount, vatRate);
 
-    const invoiceNumber = await this.generateInvoiceNumber();
-    const created = await this.model.create({
+    const created = await this.createWithUniqueNumber((invoiceNumber) => ({
       invoiceNumber,
       patientId: new Types.ObjectId(patientId),
       visitId: visitId ? new Types.ObjectId(visitId) : undefined,
@@ -170,7 +199,7 @@ export class InvoicesService {
       payments: [],
       issuedAt: new Date(),
       createdBy: actor.id,
-    });
+    }));
 
     await this.audit.record({
       actorId: actor.id,
@@ -178,7 +207,7 @@ export class InvoicesService {
       action: "invoice.create_from_treatment",
       resource: "invoice",
       resourceId: created._id.toString(),
-      meta: { invoiceNumber, total, treatmentId },
+      meta: { invoiceNumber: created.invoiceNumber, total, treatmentId },
     });
 
     return this.toShared(created);
