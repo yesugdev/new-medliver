@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { BarChart3, Users, FlaskConical, Wallet } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
+import { BarChart3, Users, FlaskConical, Wallet, Loader2 } from "lucide-react";
 import type { ReportRange } from "@his/shared";
 import { ROLES } from "@his/shared";
 import { AuthGuard } from "@/components/auth-guard";
+import { useAuthStore } from "@/stores/auth-store";
+import { getReportAccess } from "@/lib/report-access-api";
 import { ReportFilter } from "@/components/reports/report-filter";
 import { PatientReportView } from "./patient-report";
 import { LaboratoryReportView } from "./laboratory-report";
@@ -71,10 +75,39 @@ function ReportsInner() {
   );
 }
 
+/** Тайлан харах эрхийг тохиргооны дагуу динамикаар шалгана (admin + сонгосон role) */
+function ReportsGate() {
+  const router = useRouter();
+  const user = useAuthStore((s) => s.user);
+  const { data: access, isLoading } = useQuery({
+    queryKey: ["report-access"],
+    queryFn: getReportAccess,
+    staleTime: 5 * 60_000,
+  });
+
+  const allowed =
+    !!user &&
+    (user.role === ROLES.ADMIN || (access?.roles ?? []).includes(user.role));
+
+  useEffect(() => {
+    if (!isLoading && user && !allowed) router.replace("/dashboard");
+  }, [isLoading, user, allowed, router]);
+
+  if (isLoading || !user) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+  if (!allowed) return null;
+  return <ReportsInner />;
+}
+
 export default function ReportsPage() {
   return (
-    <AuthGuard allowedRoles={[ROLES.ADMIN]}>
-      <ReportsInner />
+    <AuthGuard>
+      <ReportsGate />
     </AuthGuard>
   );
 }

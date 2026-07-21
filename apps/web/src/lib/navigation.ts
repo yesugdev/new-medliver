@@ -103,12 +103,6 @@ export const NAV_ITEMS: NavItem[] = [
     roles: [ROLES.ADMIN, ROLES.RECEPTION],
   },
   {
-    href: "/reports",
-    label: "Тайлан",
-    icon: BarChart3,
-    roles: [ROLES.ADMIN],
-  },
-  {
     href: "/users",
     label: "Хэрэглэгчид",
     icon: UserCog,
@@ -150,7 +144,24 @@ export const NAV_ITEMS: NavItem[] = [
     icon: FlaskConical,
     roles: [ROLES.ADMIN],
   },
+  {
+    href: "/settings/reports-access",
+    label: "Тайлангийн хандалт",
+    icon: BarChart3,
+    roles: [ROLES.ADMIN],
+  },
 ];
+
+/**
+ * Тайлан цэс — role нь статик биш, тохиргооноос (report-access) хамаарна.
+ * Тиймээс NAV_ITEMS-д биш, sidebar дотор нөхцөлтэйгээр нэмэгддэг.
+ */
+export const REPORTS_NAV_ITEM: NavItem = {
+  href: "/reports",
+  label: "Тайлан",
+  icon: BarChart3,
+  roles: [ROLES.ADMIN], // admin үргэлж, бусад нь тохиргооноос
+};
 
 export function filterNavForRole(role: Role): NavItem[] {
   return NAV_ITEMS.filter((i) => i.roles.includes(role));

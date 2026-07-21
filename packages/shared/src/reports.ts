@@ -1,5 +1,16 @@
 /* ─── Reports module shared types ───────────────────────────────────── */
 
+import type { Role } from "./roles";
+
+/** Тайлан модулийг харах эрхтэй role-ууд. Admin үргэлж хандах эрхтэй. */
+export interface ReportAccessConfig {
+  roles: Role[];
+}
+
+export interface UpdateReportAccessInput {
+  roles: Role[];
+}
+
 /** Хугацааны шүүлтүүрийн preset */
 export type ReportPeriod = "day" | "week" | "month" | "year" | "custom";
 

@@ -6,8 +6,10 @@ import { usePathname } from "next/navigation";
 import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import type { Role } from "@his/shared";
-import { filterNavForRole } from "@/lib/navigation";
+import { filterNavForRole, REPORTS_NAV_ITEM } from "@/lib/navigation";
 import { getHospitalConfig } from "@/lib/hospital-config-api";
+import { getReportAccess } from "@/lib/report-access-api";
+import { ROLES } from "@his/shared";
 import { cn } from "@/lib/utils";
 
 export function AppSidebar({
@@ -24,7 +26,20 @@ export function AppSidebar({
   onCloseMobile: () => void;
 }) {
   const pathname = usePathname();
-  const items    = filterNavForRole(role);
+
+  const { data: reportAccess } = useQuery({
+    queryKey: ["report-access"],
+    queryFn: getReportAccess,
+    staleTime: 5 * 60 * 1000,
+    retry: false,
+  });
+
+  // Тайлан цэс: admin үргэлж, бусад role тохиргоонд орсон бол
+  const canSeeReports =
+    role === ROLES.ADMIN || (reportAccess?.roles ?? []).includes(role);
+  const items = canSeeReports
+    ? [...filterNavForRole(role), REPORTS_NAV_ITEM]
+    : filterNavForRole(role);
 
   const { data: branding } = useQuery({
     queryKey: ["hospital-config"],
