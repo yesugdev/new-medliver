@@ -103,6 +103,12 @@ export const NAV_ITEMS: NavItem[] = [
     roles: [ROLES.ADMIN, ROLES.RECEPTION],
   },
   {
+    href: "/reports",
+    label: "Тайлан",
+    icon: BarChart3,
+    roles: [ROLES.ADMIN],
+  },
+  {
     href: "/users",
     label: "Хэрэглэгчид",
     icon: UserCog,

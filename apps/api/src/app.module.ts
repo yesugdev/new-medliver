@@ -22,6 +22,7 @@ import { ComplaintModule } from "./modules/complaints/complaint.module";
 import { DiagnosesModule } from "./modules/diagnoses/diagnoses.module";
 import { InstrumentalExamsModule } from "./modules/instrumental-exams/instrumental-exams.module";
 import { HospitalConfigModule } from "./modules/hospital-config/hospital-config.module";
+import { ReportsModule } from "./modules/reports/reports.module";
 import { JwtAuthGuard } from "./common/guards/jwt-auth.guard";
 import { RolesGuard } from "./common/guards/roles.guard";
 
@@ -59,6 +60,7 @@ import { RolesGuard } from "./common/guards/roles.guard";
     DiagnosesModule,
     InstrumentalExamsModule,
     HospitalConfigModule,
+    ReportsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },

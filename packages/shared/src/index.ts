@@ -16,3 +16,4 @@ export * from "./complaint";
 export * from "./diagnosis";
 export * from "./instrumental-exam";
 export * from "./hospital-config";
+export * from "./reports";
