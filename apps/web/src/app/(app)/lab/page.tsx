@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { useAuthStore } from "@/stores/auth-store";
 import { listLabOrders, cancelLabOrder, listLabTests } from "@/lib/lab-api";
+import { listLabCategories } from "@/lib/lab-categories-api";
 import { getPatient } from "@/lib/patients-api";
 import { getPrintConfig } from "@/lib/print-config-api";
 import { printRequisition } from "@/lib/lab-print";
@@ -58,6 +59,11 @@ export default function LabPage() {
     queryFn: () => listLabTests(true),
     staleTime: 5 * 60_000,
   });
+  const { data: categoryDefs = [] } = useQuery({
+    queryKey: ["lab-categories"],
+    queryFn: () => listLabCategories(false),
+    staleTime: 5 * 60_000,
+  });
   const { data: printConfig } = useQuery({
     queryKey: ["print-config"],
     queryFn: getPrintConfig,
@@ -69,7 +75,7 @@ export default function LabPage() {
     setPrintingId(order.id);
     try {
       const patient = await getPatient(order.patientId).catch(() => undefined);
-      printRequisition(order, patient ?? undefined, catalog, printConfig);
+      printRequisition(order, patient ?? undefined, catalog, printConfig, categoryDefs);
     } catch (e) {
       toast({ title: "Алдаа", description: extractApiError(e), variant: "destructive" });
     } finally {

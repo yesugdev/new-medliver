@@ -1,15 +1,10 @@
 import {
-  LAB_CATEGORY_LABELS_MN,
   type LabCategory,
+  type LabCategoryDef,
   type LabTest,
   type PrintConfig,
 } from "@his/shared";
 import { cfg } from "./print-utils";
-
-const REQ_CATEGORY_ORDER: LabCategory[] = [
-  "biochemistry", "hematology", "immunology", "hormones",
-  "urinalysis", "microbiology", "viral_load", "coagulogram", "rapid_tests", "other",
-];
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
@@ -32,6 +27,7 @@ export function printRequisition(
   patient: ReqPatient | undefined,
   catalog: LabTest[],
   config?: Partial<PrintConfig>,
+  categories: LabCategoryDef[] = [],
 ) {
   type Block = { title: string; rows: string[] };
   const catById = new Map<string, LabCategory>();
@@ -50,10 +46,11 @@ export function printRequisition(
     }
   }
 
+  const orderedCats = [...categories].sort((a, b) => a.sortOrder - b.sortOrder);
   const blocks: Block[] = [];
-  for (const c of REQ_CATEGORY_ORDER) {
-    const names = byCat.get(c);
-    if (names?.length) blocks.push({ title: LAB_CATEGORY_LABELS_MN[c], rows: names.map(chk) });
+  for (const c of orderedCats) {
+    const names = byCat.get(c.key);
+    if (names?.length) blocks.push({ title: c.name, rows: names.map(chk) });
   }
   for (const [g, names] of byGroup) blocks.push({ title: g, rows: names.map(chk) });
 

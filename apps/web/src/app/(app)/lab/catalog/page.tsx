@@ -7,7 +7,7 @@ import {
   ArrowLeft, Plus, Loader2, Pencil, ToggleLeft, ToggleRight, FlaskConical,
 } from "lucide-react";
 import {
-  LAB_CATEGORY_LABELS_MN, type LabCategory, type LabTest,
+  type LabCategory, type LabTest,
 } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,14 +19,13 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { listLabTests, createLabTest, updateLabTest } from "@/lib/lab-api";
+import { listLabCategories } from "@/lib/lab-categories-api";
 import { extractApiError } from "@/lib/api";
-
-const CATEGORIES = Object.entries(LAB_CATEGORY_LABELS_MN) as [LabCategory, string][];
 
 /* ─── Blank form ────────────────────────────────────────────────────── */
 const EMPTY = {
   code: "", name: "", nameEn: "",
-  category: "hematology" as LabCategory,
+  category: "" as LabCategory,
   testGroup: "",
   unit: "", referenceMin: "", referenceMax: "",
   referenceText: "", turnaroundHours: "",
@@ -37,11 +36,13 @@ type FormState = typeof EMPTY;
 /* ─── Form panel ────────────────────────────────────────────────────── */
 function TestForm({
   initial,
+  categories,
   onSave,
   onCancel,
   isPending,
 }: {
   initial: FormState;
+  categories: [LabCategory, string][];
   onSave: (f: FormState) => void;
   onCancel: () => void;
   isPending: boolean;
@@ -63,9 +64,9 @@ function TestForm({
       <div className="space-y-1.5">
         <Label>Ангилал *</Label>
         <Select value={f.category} onValueChange={(v) => set("category", v)}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectTrigger><SelectValue placeholder="Сонгох..." /></SelectTrigger>
           <SelectContent>
-            {CATEGORIES.map(([v, l]) => (
+            {categories.map(([v, l]) => (
               <SelectItem key={v} value={v}>{l}</SelectItem>
             ))}
           </SelectContent>
@@ -150,6 +151,14 @@ export default function LabCatalogPage() {
     queryKey: ["lab-tests-admin"],
     queryFn: () => listLabTests(true),   // include inactive
   });
+
+  const { data: categoryDefs = [] } = useQuery({
+    queryKey: ["lab-categories"],
+    queryFn: () => listLabCategories(false),
+    staleTime: 5 * 60_000,
+  });
+  const CATEGORIES: [LabCategory, string][] =
+    [...categoryDefs].sort((a, b) => a.sortOrder - b.sortOrder).map((c) => [c.key, c.name]);
 
   const create = useMutation({
     mutationFn: (f: FormState) =>
@@ -262,6 +271,7 @@ export default function LabCatalogPage() {
           <CardContent>
             <TestForm
               initial={EMPTY}
+              categories={CATEGORIES}
               onSave={(f) => create.mutate(f)}
               onCancel={() => setShowForm(false)}
               isPending={create.isPending}
@@ -319,6 +329,7 @@ export default function LabCatalogPage() {
                         <div className="p-5">
                           <TestForm
                             initial={testToForm(test)}
+                            categories={CATEGORIES}
                             onSave={(f) => update.mutate({ id: test.id, f })}
                             onCancel={() => setEditTest(null)}
                             isPending={update.isPending}

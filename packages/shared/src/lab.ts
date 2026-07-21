@@ -1,29 +1,58 @@
 /* ─── Category ──────────────────────────────────────────────────────── */
 
-export type LabCategory =
-  | "hematology"
-  | "biochemistry"
-  | "urinalysis"
-  | "immunology"
-  | "rapid_tests"
-  | "viral_load"
-  | "coagulogram"
-  | "microbiology"
-  | "hormones"
-  | "other";
+/**
+ * Ангиллын түлхүүр — өмнө нь хатуу бэхлэгдсэн union байсан ч одоо Admin
+ * тохиргооноос динамикаар нэмэгддэг тул чөлөөт string болгосон. LabTest.category
+ * нь энэ түлхүүрийг string-ээр л хадгалдаг тул шинэ ангилал нэмэгдэхэд
+ * одоо байгаа өгөгдөлд ямар ч нөлөө үзүүлэхгүй.
+ */
+export type LabCategory = string;
 
-export const LAB_CATEGORY_LABELS_MN: Record<LabCategory, string> = {
-  hematology:   "Гематологи",
-  biochemistry: "Биохими",
-  urinalysis:   "Шээсний шинжилгээ",
-  immunology:   "Иммунологи",
-  rapid_tests:  "Түргэвчилсэн шинжилгээ",
-  viral_load:   "Вирусын ачаалал",
-  coagulogram:  "Коагулограмм",
-  microbiology: "Бактериологи",
-  hormones:     "Дааврын шинжилгээ",
-  other:        "Бусад",
-};
+/** Анхны (default/system) ангиллуудын seed мэдээлэл — Admin-аар устгагдахгүй */
+export const DEFAULT_LAB_CATEGORIES: { key: LabCategory; name: string; sortOrder: number }[] = [
+  { key: "rapid_tests",  name: "Түргэвчилсэн шинжилгээ", sortOrder: 0 },
+  { key: "viral_load",   name: "Вирусын ачаалал",         sortOrder: 1 },
+  { key: "biochemistry", name: "Биохими",                 sortOrder: 2 },
+  { key: "hematology",   name: "Гематологи",               sortOrder: 3 },
+  { key: "coagulogram",  name: "Коагулограмм",             sortOrder: 4 },
+  { key: "immunology",   name: "Иммунологи",               sortOrder: 5 },
+  { key: "urinalysis",   name: "Шээсний шинжилгээ",        sortOrder: 6 },
+  { key: "hormones",     name: "Дааврын шинжилгээ",        sortOrder: 7 },
+  { key: "microbiology", name: "Бактериологи",             sortOrder: 8 },
+  { key: "other",        name: "Бусад",                    sortOrder: 9 },
+];
+
+/** Хуучин код-т зориулсан fallback label map — шинэ код дээр live /lab-categories ашиглана */
+export const LAB_CATEGORY_LABELS_MN: Record<string, string> =
+  Object.fromEntries(DEFAULT_LAB_CATEGORIES.map((c) => [c.key, c.name]));
+
+export interface LabCategoryDef {
+  id: string;
+  key: string;
+  name: string;
+  nameEn?: string;
+  isActive: boolean;
+  /** Seed-ээр үүссэн, устгах боломжгүй систем ангилал */
+  isDefault: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateLabCategoryInput {
+  key: string;
+  name: string;
+  nameEn?: string;
+  sortOrder?: number;
+}
+
+/** key нь үүсгэсний дараа өөрчлөгдөхгүй — одоо байгаа LabTest холбоосыг хамгаална */
+export interface UpdateLabCategoryInput {
+  name?: string;
+  nameEn?: string;
+  sortOrder?: number;
+  isActive?: boolean;
+}
 
 /* ─── Priority ──────────────────────────────────────────────────────── */
 

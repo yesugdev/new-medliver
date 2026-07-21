@@ -13,6 +13,7 @@ import { EmrModule } from "./modules/emr/emr.module";
 import { BillingModule } from "./modules/billing/billing.module";
 import { StatsModule } from "./modules/stats/stats.module";
 import { LabModule } from "./modules/lab/lab.module";
+import { LabCategoriesModule } from "./modules/lab-categories/lab-categories.module";
 import { VitalsModule } from "./modules/vitals/vitals.module";
 import { DrugsModule } from "./modules/drugs/drugs.module";
 import { PrintConfigModule } from "./modules/print-config/print-config.module";
@@ -49,6 +50,7 @@ import { RolesGuard } from "./common/guards/roles.guard";
     BillingModule,
     StatsModule,
     LabModule,
+    LabCategoriesModule,
     VitalsModule,
     DrugsModule,
     PrintConfigModule,

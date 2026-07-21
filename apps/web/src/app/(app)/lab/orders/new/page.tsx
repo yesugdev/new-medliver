@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Loader2, Search, FlaskConical } from "lucide-react";
-import { LAB_CATEGORY_LABELS_MN, type LabCategory } from "@his/shared";
+import { type LabCategory } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ import {
 import { useToast } from "@/components/ui/toast";
 import { listPatients } from "@/lib/patients-api";
 import { listLabTests, createLabOrder } from "@/lib/lab-api";
+import { listLabCategories } from "@/lib/lab-categories-api";
 import { extractApiError } from "@/lib/api";
 
 const PRIORITY_OPTIONS = [
@@ -52,6 +53,16 @@ export default function NewLabOrderPage() {
     queryKey: ["lab-tests-all"],
     queryFn: () => listLabTests(false),
   });
+
+  const { data: categoryDefs = [] } = useQuery({
+    queryKey: ["lab-categories"],
+    queryFn: () => listLabCategories(false),
+    staleTime: 5 * 60_000,
+  });
+  const categoryLabel = useMemo(
+    () => new Map(categoryDefs.map((c) => [c.key, c.name])),
+    [categoryDefs],
+  );
 
   /* Group tests by category */
   const grouped = useMemo(() => {
@@ -259,7 +270,7 @@ export default function NewLabOrderPage() {
                           onClick={() => toggleCategory(cat)}
                           className="w-full flex items-center justify-between px-4 py-2.5 bg-muted/40 hover:bg-muted text-sm font-semibold text-left"
                         >
-                          <span>{LAB_CATEGORY_LABELS_MN[cat]}</span>
+                          <span>{categoryLabel.get(cat) ?? cat}</span>
                           <span className={`text-xs px-2 py-0.5 rounded-full border ${
                             allSel ? "bg-violet-100 text-violet-700 border-violet-300"
                               : someSel ? "bg-amber-50 text-amber-700 border-amber-200"

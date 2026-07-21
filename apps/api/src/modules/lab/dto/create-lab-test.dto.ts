@@ -2,16 +2,12 @@ import {
   IsArray, IsEnum, IsNumber, IsOptional, IsString, MaxLength, Min,
 } from "class-validator";
 
-const CATEGORIES = [
-  "hematology","biochemistry","urinalysis","microbiology",
-  "immunology","hormones","rapid_tests","viral_load","coagulogram","other",
-] as const;
-
 export class CreateLabTestDto {
   @IsString() @MaxLength(20)    code!: string;
   @IsString() @MaxLength(200)   name!: string;
   @IsOptional() @IsString() @MaxLength(200) nameEn?: string;
-  @IsEnum(CATEGORIES)           category!: string;
+  /** Live /lab-categories жагсаалттай нийцэж байгааг LabService шалгана */
+  @IsString() @MaxLength(50)    category!: string;
   @IsOptional() @IsString() @MaxLength(200) testGroup?: string;
   @IsOptional() @IsString() @MaxLength(30)  unit?: string;
   @IsOptional() @IsNumber() @Min(0)         referenceMin?: number;

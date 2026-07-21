@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
 import { useAuthStore } from "@/stores/auth-store";
 import { getLabOrder, recordLabResults, cancelLabOrder, deleteLabResult, updateLabOrderDate, listLabTests } from "@/lib/lab-api";
+import { listLabCategories } from "@/lib/lab-categories-api";
 import { printRequisition } from "@/lib/lab-print";
 import { LAB_ORDER_TONE, LAB_INTERP_TONE } from "@/lib/status-tones";
 import { extractApiError } from "@/lib/api";
@@ -289,6 +290,12 @@ export default function LabOrderDetailPage() {
     staleTime: 5 * 60_000,
   });
 
+  const { data: categoryDefs = [] } = useQuery({
+    queryKey: ["lab-categories"],
+    queryFn: () => listLabCategories(false),
+    staleTime: 5 * 60_000,
+  });
+
   /* Pre-fill inputs with existing results when order loads */
   useEffect(() => {
     if (order) {
@@ -451,7 +458,7 @@ export default function LabOrderDetailPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => printRequisition(order, patientData, catalog, printConfig)}
+          onClick={() => printRequisition(order, patientData, catalog, printConfig, categoryDefs)}
         >
           <Printer className="h-4 w-4" />
           Шинжилгээний бичиг

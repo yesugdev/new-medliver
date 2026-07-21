@@ -11,6 +11,7 @@ import { LabOrder, LabOrderDocument, LabOrderItem } from "./lab-order.schema";
 import { Patient, PatientDocument } from "../patients/patient.schema";
 import { User, UserDocument } from "../users/user.schema";
 import { AuditService } from "../audit/audit.service";
+import { LabCategoriesService } from "../lab-categories/lab-categories.service";
 import { CreateLabTestDto } from "./dto/create-lab-test.dto";
 import { UpdateLabTestDto } from "./dto/update-lab-test.dto";
 import { CreateLabOrderDto } from "./dto/create-lab-order.dto";
@@ -67,6 +68,7 @@ export class LabService {
     @InjectModel(Patient.name)  private readonly patientModel: Model<PatientDocument>,
     @InjectModel(User.name)     private readonly userModel:   Model<UserDocument>,
     private readonly audit: AuditService,
+    private readonly categories: LabCategoriesService,
   ) {}
 
   /* ── Shared converters ─────────────────────────────────────────────── */
@@ -162,6 +164,9 @@ export class LabService {
     const exists = await this.testModel.findOne({ code: dto.code.toUpperCase() }).lean();
     if (exists) throw new BadRequestException(`Код '${dto.code}' аль хэдийн бүртгэгдсэн`);
 
+    if (dto.category && !(await this.categories.exists(dto.category)))
+      throw new BadRequestException(`'${dto.category}' ангилал олдсонгүй`);
+
     const doc = await this.testModel.create({ ...dto, code: dto.code.toUpperCase(), isActive: true });
     await this.audit.record({
       actorId: actor.id, actorEmail: actor.email,
@@ -173,6 +178,9 @@ export class LabService {
   async updateTest(id: string, dto: UpdateLabTestDto, actor: AuthUser): Promise<SharedTest> {
     const doc = await this.testModel.findById(id).exec();
     if (!doc) throw new NotFoundException("Шинжилгээний код олдсонгүй");
+
+    if (dto.category !== undefined && !(await this.categories.exists(dto.category)))
+      throw new BadRequestException(`'${dto.category}' ангилал олдсонгүй`);
 
     if (dto.code !== undefined)           doc.code          = dto.code.toUpperCase();
     if (dto.name !== undefined)           doc.name          = dto.name;

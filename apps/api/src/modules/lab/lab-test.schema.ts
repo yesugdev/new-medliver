@@ -4,11 +4,6 @@ import { softDeletePlugin } from "../../common/plugins/soft-delete.plugin";
 
 export type LabTestDocument = HydratedDocument<LabTest>;
 
-export type LabCategoryEnum =
-  | "hematology" | "biochemistry" | "urinalysis"
-  | "microbiology" | "immunology" | "hormones"
-  | "rapid_tests" | "viral_load" | "coagulogram" | "other";
-
 @Schema({ timestamps: true, collection: "lab_tests" })
 export class LabTest {
   @Prop({ type: String, required: true, unique: true, trim: true, index: true })
@@ -20,13 +15,9 @@ export class LabTest {
   @Prop({ type: String, trim: true })
   nameEn?: string;
 
-  @Prop({
-    type: String,
-    enum: ["hematology","biochemistry","urinalysis","microbiology","immunology","hormones","rapid_tests","viral_load","coagulogram","other"],
-    default: "other",
-    index: true,
-  })
-  category!: LabCategoryEnum;
+  /** LabCategoryEntity.key-тэй холбогддог string түлхүүр — Admin-аар динамикаар нэмэгддэг */
+  @Prop({ type: String, default: "other", trim: true, index: true })
+  category!: string;
 
   @Prop({ type: String, trim: true })
   testGroup?: string;

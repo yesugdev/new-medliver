@@ -138,6 +138,12 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Activity,
     roles: [ROLES.ADMIN],
   },
+  {
+    href: "/settings/lab-categories",
+    label: "Шинжилгээний ангилал",
+    icon: FlaskConical,
+    roles: [ROLES.ADMIN],
+  },
 ];
 
 export function filterNavForRole(role: Role): NavItem[] {

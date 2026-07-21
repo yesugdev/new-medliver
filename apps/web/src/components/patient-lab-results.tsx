@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { FlaskConical, Loader2, Inbox, X, Check, Pencil } from "lucide-react";
 import {
-  LAB_CATEGORY_LABELS_MN,
   type LabCategory,
   type LabInterpretation,
   type LabOrder,
@@ -18,13 +17,8 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/components/ui/toast";
 import { useAuthStore } from "@/stores/auth-store";
 import { listLabOrders, listLabTests, quickLabResult } from "@/lib/lab-api";
+import { listLabCategories } from "@/lib/lab-categories-api";
 import { extractApiError } from "@/lib/api";
-
-/* Категорийн дараалал (tab-ийн эрэмбэ) */
-const CATEGORY_ORDER: LabCategory[] = [
-  "rapid_tests", "viral_load", "biochemistry", "hematology",
-  "coagulogram", "immunology", "urinalysis", "hormones", "microbiology", "other",
-];
 
 /* Утгын өнгө — interpretation-аар */
 function valueClass(interp?: LabInterpretation): string {
@@ -163,11 +157,13 @@ function GroupTable({ group, recs }: { group: string; recs: ResultRec[] }) {
 function ResultEntryPanel({
   patientId,
   category,
+  categoryLabel,
   tests,
   onClose,
 }: {
   patientId: string;
   category: LabCategory;
+  categoryLabel: string;
   tests: LabTest[];
   onClose: () => void;
 }) {
@@ -226,7 +222,7 @@ function ResultEntryPanel({
         <div className="flex items-center justify-between px-5 py-3 border-b border-border">
           <h2 className="text-base font-semibold flex items-center gap-2">
             <FlaskConical className="h-4 w-4 text-emerald-600" />
-            {LAB_CATEGORY_LABELS_MN[category]} — хариу оруулах
+            {categoryLabel} — хариу оруулах
           </h2>
           <button onClick={onClose} className="h-8 w-8 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted">
             <X className="h-4 w-4" />
@@ -307,6 +303,19 @@ export function PatientLabResults({ patientId }: { patientId: string }) {
     queryFn: () => listLabTests(true),
     staleTime: 5 * 60_000,
   });
+  const { data: categoryDefs = [] } = useQuery({
+    queryKey: ["lab-categories"],
+    queryFn: () => listLabCategories(false),
+    staleTime: 5 * 60_000,
+  });
+  const categoryLabel = useMemo(
+    () => new Map(categoryDefs.map((c) => [c.key, c.name])),
+    [categoryDefs],
+  );
+  const categoryOrder = useMemo(
+    () => [...categoryDefs].sort((a, b) => a.sortOrder - b.sortOrder).map((c) => c.key),
+    [categoryDefs],
+  );
 
   // testId → catalog (category, sortOrder)
   const catById = useMemo(() => {
@@ -350,8 +359,8 @@ export function PatientLabResults({ patientId }: { patientId: string }) {
   // Бүх категори (catalog дахь) — tab бүр харагдана, хариугүй ч хоосон харагдана
   const categories = useMemo(() => {
     const present = new Set(catalog.map((t) => t.category));
-    return CATEGORY_ORDER.filter((c) => present.has(c));
-  }, [catalog]);
+    return categoryOrder.filter((c) => present.has(c));
+  }, [catalog, categoryOrder]);
 
   const [active, setActive] = useState<LabCategory | null>(null);
   const activeCat = active && categories.includes(active) ? active : categories[0] ?? null;
@@ -381,6 +390,7 @@ export function PatientLabResults({ patientId }: { patientId: string }) {
         <ResultEntryPanel
           patientId={patientId}
           category={activeCat}
+          categoryLabel={categoryLabel.get(activeCat) ?? activeCat}
           tests={activeTests}
           onClose={() => setEntryOpen(false)}
         />
@@ -428,7 +438,7 @@ export function PatientLabResults({ patientId }: { patientId: string }) {
                       : "text-muted-foreground hover:bg-muted"
                   }`}
                 >
-                  {LAB_CATEGORY_LABELS_MN[c]}
+                  {categoryLabel.get(c) ?? c}
                 </button>
               ))}
             </div>
