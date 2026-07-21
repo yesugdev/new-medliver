@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta http-equiv="refresh" content="20" />
+<title>Систем шинэчлэгдэж байна</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    font-family: -apple-system, "Segoe UI", Arial, sans-serif;
+    background: linear-gradient(160deg, #0f172a, #1e293b);
+    color: #f8fafc;
+  }
+  .wrap {
+    min-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 16px;
+    padding: 40px 32px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+  }
+  .spinner {
+    width: 44px;
+    height: 44px;
+    margin: 0 auto 22px;
+    border-radius: 50%;
+    border: 3px solid rgba(139,92,246,0.25);
+    border-top-color: #8b5cf6;
+    animation: spin 0.9s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  h1 {
+    font-size: 19px;
+    font-weight: 700;
+    margin-bottom: 10px;
+    letter-spacing: 0.2px;
+  }
+  p {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #cbd5e1;
+    margin-bottom: 6px;
+  }
+  .eta {
+    display: inline-block;
+    margin-top: 16px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    background: rgba(139,92,246,0.15);
+    border: 1px solid rgba(139,92,246,0.35);
+    color: #c4b5fd;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .brand {
+    margin-top: 26px;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    color: #64748b;
+    text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="spinner"></div>
+      <h1>Систем шинэчлэгдэж байна</h1>
+      <p>Уучлаарай, тавтай саяхан шинэчлэлт хийгдэж байгаа тул систем түр хугацаанд ажиллахгүй байна.</p>
+      <p>Хуудас автоматаар дахин ачаалагдана — та юу ч хийх шаардлагагүй.</p>
+      <span class="eta">~15–20 минутын дараа сэргэнэ</span>
+      <div class="brand">MEDLIVER · Эмнэлгийн систем</div>
+    </div>
+  </div>
+</body>
+</html>

@@ -675,6 +675,22 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
   up -d --build --no-deps web
 ```
 
+### "Систем шинэчлэгдэж байна" хуудас (deploy-ийн үед)
+
+`api`/`web` container rebuild хийгдэж байх богино хугацаанд (~15-20 мин
+хүртэл) хэрэглэгчид raw 502 алдааны оронд брэндлэгдсэн "Систем
+шинэчлэгдэж байна" хуудсыг харна (`nginx/maintenance.html`, 20 секунд
+тутам автоматаар дахин ачаална). Энэ нь `nginx` config-т суулгагдсан
+тул **нэмэлт алхам хийх шаардлагагүй** — deploy бүр дээр автоматаар
+ажиллана.
+
+Зөвхөн энэ тохиргоог **анх удаа суулгах** үед (эсвэл `nginx/default.conf`
+өөрчлөгдсөн үед) nginx-г дахин ачаалах шаардлагатай:
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-deps nginx
+docker restart his-nginx
+```
+
 ---
 
 ## 15. Алдааг засах (Troubleshooting)
