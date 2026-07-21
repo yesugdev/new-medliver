@@ -49,7 +49,7 @@ function openThermalPrintWindow(title: string, widthKey: ThermalWidthKey, bodyHt
   }
   html, body { width: ${w.mm}mm; }
   body {
-    font-family: "Courier New", Consolas, monospace;
+    font-family: Arial, Helvetica, sans-serif;
     font-size: ${w.fontSize}px;
     line-height: 1.35;
     color: #000;
@@ -75,7 +75,7 @@ function openThermalPrintWindow(title: string, widthKey: ThermalWidthKey, bodyHt
   }
   .t-item-name { word-break: break-word; overflow-wrap: anywhere; padding-top: 2px; }
   .t-total     { font-size: ${w.fontSize + 2}px; }
-  .mono        { font-family: "Courier New", Consolas, monospace; }
+  .mono        { font-family: Arial, Helvetica, sans-serif; }
   @media print {
     html, body { width: ${w.mm}mm; }
   }
