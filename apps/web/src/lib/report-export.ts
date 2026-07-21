@@ -77,40 +77,69 @@ export function exportCsv(baseName: string, sheets: ExportSheet[]) {
 
 /**
  * Print / PDF — тухайн DOM хэсгийг (SVG график + хүснэгт) шинэ цонхонд
- * хуулж хэвлэнэ. `data-noprint` тэмдэгтэй элементүүдийг хасна.
+ * хуулж хэвлэнэ. Апп-ийн бүх stylesheet-ийг хамт хуулж авдаг тул хэвлэлт
+ * дэлгэц дээрхтэй яг адил цэвэрхэн харагдана. `data-noprint` тэмдэгтэй
+ * элементүүдийг хасна.
  */
 export function printReport(container: HTMLElement, title: string) {
   const clone = container.cloneNode(true) as HTMLElement;
   clone.querySelectorAll("[data-noprint]").forEach((el) => el.remove());
 
-  const win = window.open("", "_blank", "width=1000,height=760");
+  // Апп-ийн CSS (Tailwind + globals)-ийг хуулж авах — эс тэгвэл шинэ цонхонд
+  // ямар ч загваргүй, муухай харагдана.
+  const headStyles = Array.from(
+    document.querySelectorAll('link[rel="stylesheet"], style'),
+  )
+    .map((el) => el.outerHTML)
+    .join("\n");
+
+  const win = window.open("", "_blank", "width=1120,height=800");
   if (!win) return;
 
   win.document.write(`<!DOCTYPE html>
 <html lang="mn"><head>
 <meta charset="UTF-8" />
 <title>${esc(title)}</title>
+${headStyles}
 <style>
-  @page { margin: 1.2cm; size: A4 landscape; }
-  * { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-  body { font-family: Arial, sans-serif; color: #1e293b; margin: 0; font-size: 12px; }
-  h1 { font-size: 18px; margin: 0 0 4px; }
-  .print-date { color: #64748b; font-size: 11px; margin-bottom: 14px; }
-  .card { border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 14px; break-inside: avoid; }
-  .card > div:first-child { font-weight: 700; font-size: 12px; padding: 8px 14px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
-  .card > div:last-child { padding: 12px 14px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { padding: 4px 8px; text-align: left; border-bottom: 1px solid #eef2f7; font-size: 11px; }
-  th { color: #64748b; }
-  svg { max-width: 100%; height: auto; }
-  .grid { display: grid; gap: 12px; }
-  button { display: none !important; }
+  @page { size: A4 landscape; margin: 12mm; }
+  html, body {
+    background: #fff !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  body { margin: 0; padding: 20px; }
+  .report-print-title { font-size: 20px; font-weight: 700; margin: 0 0 2px; color: #0f172a; }
+  .report-print-date { color: #64748b; font-size: 12px; margin-bottom: 18px; }
+  /* Картуудыг хуудас дундуур таслахгүй */
+  .report-print-body > div > div,
+  .report-print-body [class*="rounded"] { break-inside: avoid; }
+  button, [data-noprint] { display: none !important; }
+  @media print { body { padding: 0; } }
 </style>
 </head><body>
-  <h1>${esc(title)}</h1>
-  <div class="print-date">Хэвлэсэн: ${new Date().toLocaleString("mn-MN")}</div>
-  ${clone.innerHTML}
-  <script>window.onload=()=>{window.print();window.onafterprint=()=>window.close()}<\/script>
+  <div class="report-print-title">${esc(title)}</div>
+  <div class="report-print-date">Хэвлэсэн: ${new Date().toLocaleString("mn-MN")}</div>
+  <div class="report-print-body">${clone.innerHTML}</div>
+  <script>
+    (function () {
+      function waitForStyles() {
+        var links = Array.prototype.slice.call(document.querySelectorAll('link[rel="stylesheet"]'));
+        return Promise.all(links.map(function (l) {
+          if (l.sheet) return Promise.resolve();
+          return new Promise(function (res) {
+            l.addEventListener('load', res);
+            l.addEventListener('error', res);
+            setTimeout(res, 1500);
+          });
+        }));
+      }
+      window.onafterprint = function () { window.close(); };
+      window.onload = function () {
+        waitForStyles().then(function () { setTimeout(function () { window.print(); }, 200); });
+      };
+    })();
+  <\/script>
 </body></html>`);
   win.document.close();
 }
