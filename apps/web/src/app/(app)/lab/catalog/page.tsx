@@ -259,18 +259,18 @@ export default function LabCatalogPage() {
     : tests;
 
   const grouped = CATEGORIES.reduce<Record<string, LabTest[]>>((acc, [cat]) => {
+    // sortOrder голлон эрэмбэлнэ; sortOrder тэнцүү (жишээ нь бүгд 0) үед
+    // testGroup-оор бүлэглэж, дараа нь нэрээр — эхний харагдац цэвэрхэн байна.
     acc[cat] = filtered
       .filter((t) => t.category === cat)
       .sort(
         (a, b) =>
-          (a.testGroup ?? "").localeCompare(b.testGroup ?? "") ||
           (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
+          (a.testGroup ?? "").localeCompare(b.testGroup ?? "") ||
           a.name.localeCompare(b.name),
       );
     return acc;
   }, {});
-
-  const sameGroup = (a?: LabTest, b?: LabTest) => (a?.testGroup ?? "") === (b?.testGroup ?? "");
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -379,7 +379,7 @@ export default function LabCatalogPage() {
                             <button
                               type="button"
                               onClick={() => moveTest(items, idx, -1)}
-                              disabled={reorder.isPending || !sameGroup(test, items[idx - 1])}
+                              disabled={reorder.isPending || idx === 0}
                               title="Дээш"
                               className="h-4 flex items-center justify-center text-muted-foreground hover:text-primary disabled:opacity-25"
                             >
@@ -388,7 +388,7 @@ export default function LabCatalogPage() {
                             <button
                               type="button"
                               onClick={() => moveTest(items, idx, 1)}
-                              disabled={reorder.isPending || !sameGroup(test, items[idx + 1])}
+                              disabled={reorder.isPending || idx === items.length - 1}
                               title="Доош"
                               className="h-4 flex items-center justify-center text-muted-foreground hover:text-primary disabled:opacity-25"
                             >
