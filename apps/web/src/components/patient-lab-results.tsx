@@ -368,8 +368,10 @@ export function PatientLabResults({ patientId }: { patientId: string }) {
   const user = useAuthStore((s) => s.user);
   const canRecord = !!user && ["admin", "doctor", "nurse"].includes(user.role);
   const [entryOpen, setEntryOpen] = useState(false);
+  // Хариу оруулах form-д зөвхөн ИДЭВХТЭЙ шинжилгээ (catalog нь матрицад
+  // хуучин хариу харуулахын тулд идэвхгүйг ч агуулдаг).
   const activeTests = useMemo(
-    () => (activeCat ? catalog.filter((t) => t.category === activeCat) : []),
+    () => (activeCat ? catalog.filter((t) => t.category === activeCat && t.isActive) : []),
     [catalog, activeCat],
   );
 
