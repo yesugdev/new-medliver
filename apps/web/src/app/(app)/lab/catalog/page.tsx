@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft, Plus, Loader2, Pencil, ToggleLeft, ToggleRight, FlaskConical,
+  ChevronUp, ChevronDown,
 } from "lucide-react";
 import {
   type LabCategory, type LabTest,
@@ -18,7 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/components/ui/toast";
-import { listLabTests, createLabTest, updateLabTest } from "@/lib/lab-api";
+import { listLabTests, createLabTest, updateLabTest, reorderLabTests } from "@/lib/lab-api";
 import { listLabCategories } from "@/lib/lab-categories-api";
 import { extractApiError } from "@/lib/api";
 
@@ -216,6 +217,30 @@ export default function LabCatalogPage() {
       toast({ title: "Алдаа", description: extractApiError(e), variant: "destructive" }),
   });
 
+  /* Багана (шинжилгээ)-ны дараалал солих — sortOrder-ыг серверт бичнэ */
+  const reorder = useMutation({
+    mutationFn: (ids: string[]) => reorderLabTests(ids),
+    onError: (e) => {
+      toast({ title: "Алдаа", description: extractApiError(e), variant: "destructive" });
+      qc.invalidateQueries({ queryKey: ["lab-tests-admin"] });
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["lab-tests-all"] }),
+  });
+
+  /** Тухайн ангиллын жагсаалт дотор idx-ийг dir(±1) чиглэлд зөөх */
+  const moveTest = (items: LabTest[], idx: number, dir: -1 | 1) => {
+    const j = idx + dir;
+    if (j < 0 || j >= items.length) return;
+    const arr = [...items];
+    [arr[idx], arr[j]] = [arr[j], arr[idx]];
+    // Optimistic — sortOrder-ыг шинэ дарааллаар нь шууд шинэчилж хурдан харагдуулна
+    const orderMap = new Map(arr.map((t, i) => [t.id, i]));
+    qc.setQueryData<LabTest[]>(["lab-tests-admin"], (old) =>
+      old ? old.map((t) => (orderMap.has(t.id) ? { ...t, sortOrder: orderMap.get(t.id)! } : t)) : old,
+    );
+    reorder.mutate(arr.map((t) => t.id));
+  };
+
   const testToForm = (t: LabTest): FormState => ({
     code:            t.code,
     name:            t.name,
@@ -234,9 +259,18 @@ export default function LabCatalogPage() {
     : tests;
 
   const grouped = CATEGORIES.reduce<Record<string, LabTest[]>>((acc, [cat]) => {
-    acc[cat] = filtered.filter((t) => t.category === cat);
+    acc[cat] = filtered
+      .filter((t) => t.category === cat)
+      .sort(
+        (a, b) =>
+          (a.testGroup ?? "").localeCompare(b.testGroup ?? "") ||
+          (a.sortOrder ?? 0) - (b.sortOrder ?? 0) ||
+          a.name.localeCompare(b.name),
+      );
     return acc;
   }, {});
+
+  const sameGroup = (a?: LabTest, b?: LabTest) => (a?.testGroup ?? "") === (b?.testGroup ?? "");
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -321,9 +355,12 @@ export default function LabCatalogPage() {
                 <div className="px-5 py-3 bg-muted/40 border-b border-border">
                   <span className="font-semibold text-sm">{catLabel}</span>
                   <span className="ml-2 text-xs text-muted-foreground">({items.length})</span>
+                  <span className="ml-2 text-[11px] text-muted-foreground">
+                    · ↑↓ товчоор баганы (шинжилгээний) дарааллыг солино
+                  </span>
                 </div>
                 <div className="divide-y divide-border">
-                  {items.map((test) => (
+                  {items.map((test, idx) => (
                     <div key={test.id}>
                       {editTest?.id === test.id ? (
                         <div className="p-5">
@@ -337,6 +374,27 @@ export default function LabCatalogPage() {
                         </div>
                       ) : (
                         <div className={`flex items-center gap-3 px-5 py-3 ${!test.isActive ? "opacity-50" : ""}`}>
+                          {/* Reorder — зөвхөн ижил бүлэг дотор */}
+                          <div className="flex flex-col shrink-0 -my-1">
+                            <button
+                              type="button"
+                              onClick={() => moveTest(items, idx, -1)}
+                              disabled={reorder.isPending || !sameGroup(test, items[idx - 1])}
+                              title="Дээш"
+                              className="h-4 flex items-center justify-center text-muted-foreground hover:text-primary disabled:opacity-25"
+                            >
+                              <ChevronUp className="h-4 w-4" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => moveTest(items, idx, 1)}
+                              disabled={reorder.isPending || !sameGroup(test, items[idx + 1])}
+                              title="Доош"
+                              className="h-4 flex items-center justify-center text-muted-foreground hover:text-primary disabled:opacity-25"
+                            >
+                              <ChevronDown className="h-4 w-4" />
+                            </button>
+                          </div>
                           <div className="font-mono text-xs bg-violet-100 text-violet-700 px-2 py-0.5 rounded border border-violet-200 w-20 text-center shrink-0">
                             {test.code}
                           </div>

@@ -205,6 +205,23 @@ export class LabService {
     return this.testToShared(doc);
   }
 
+  /** Дараалсан id жагсаалтын дагуу sortOrder-ыг 0..n болгож дахин бичнэ */
+  async reorderTests(ids: string[], actor: AuthUser): Promise<{ success: true }> {
+    const ops = ids.map((id, index) => ({
+      updateOne: {
+        filter: { _id: new Types.ObjectId(id) },
+        update: { $set: { sortOrder: index } },
+      },
+    }));
+    if (ops.length > 0) await this.testModel.bulkWrite(ops);
+
+    await this.audit.record({
+      actorId: actor.id, actorEmail: actor.email,
+      action: "lab_test.reorder", resource: "lab_test", resourceId: "bulk",
+    });
+    return { success: true };
+  }
+
   /* ── Orders ────────────────────────────────────────────────────────── */
   async createOrder(dto: CreateLabOrderDto, actor: AuthUser): Promise<SharedOrder> {
     const [patient, tests] = await Promise.all([

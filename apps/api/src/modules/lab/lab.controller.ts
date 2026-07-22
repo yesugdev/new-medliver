@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Delete, Get, Param, Patch, Post, Query,
+  Body, Controller, Delete, Get, Param, Patch, Post, Put, Query,
 } from "@nestjs/common";
 import type { AuthUser } from "@his/shared";
 import { ROLES } from "@his/shared";
@@ -13,6 +13,7 @@ import { RecordResultsDto } from "./dto/record-results.dto";
 import { QuickResultDto } from "./dto/quick-result.dto";
 import { ListOrdersDto } from "./dto/list-orders.dto";
 import { UpdateOrderDateDto } from "./dto/update-order-date.dto";
+import { ReorderTestsDto } from "./dto/reorder-tests.dto";
 
 /* ── Test catalog (admin) ──────────────────────────────────────────── */
 @Controller("lab/tests")
@@ -29,6 +30,13 @@ export class LabTestsController {
   @Roles(ROLES.ADMIN)
   create(@Body() dto: CreateLabTestDto, @CurrentUser() user: AuthUser) {
     return this.svc.createTest(dto, user);
+  }
+
+  /** Багануудын (шинжилгээний) дарааллыг солих — sortOrder-ыг дараалуулж бичнэ */
+  @Put("reorder")
+  @Roles(ROLES.ADMIN)
+  reorder(@Body() dto: ReorderTestsDto, @CurrentUser() user: AuthUser) {
+    return this.svc.reorderTests(dto.ids, user);
   }
 
   @Patch(":id")

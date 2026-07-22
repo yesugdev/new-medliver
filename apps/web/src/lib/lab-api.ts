@@ -18,6 +18,10 @@ export async function listLabTests(all = false): Promise<LabTest[]> {
   return data;
 }
 
+export async function reorderLabTests(ids: string[]): Promise<void> {
+  await api.put("/lab/tests/reorder", { ids });
+}
+
 export async function createLabTest(payload: CreateLabTestInput): Promise<LabTest> {
   const { data } = await api.post<LabTest>("/lab/tests", payload);
   return data;
