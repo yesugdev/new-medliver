@@ -8,7 +8,7 @@ export class StatsController {
   constructor(private readonly stats: StatsService) {}
 
   @Get("dashboard")
-  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION, ROLES.LAB)
   dashboard() {
     return this.stats.dashboard();
   }
