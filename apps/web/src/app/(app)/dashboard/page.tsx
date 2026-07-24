@@ -22,6 +22,8 @@ import {
   Pill,
   AlertTriangle,
   CalendarX2,
+  FlaskConical,
+  Clock,
 } from "lucide-react";
 import { ROLE_LABELS_MN } from "@his/shared";
 import type { Role } from "@his/shared";
@@ -38,7 +40,7 @@ import { calculateAge, formatDateMn } from "@/lib/utils";
 const PAGE_SIZE = 10;
 
 /* ─── Role stat definitions ─────────────────────────────────────────── */
-type StatKey = "totalPatients" | "todayAppointments" | "waitingPatients" | "todayVisits" | "todayRevenue" | "newPatientsThisWeek" | "totalRevenue" | "todayTreatments" | "drugValuation" | "drugLowStock" | "drugExpiring";
+type StatKey = "totalPatients" | "todayAppointments" | "waitingPatients" | "todayVisits" | "todayRevenue" | "newPatientsThisWeek" | "totalRevenue" | "todayTreatments" | "drugValuation" | "drugLowStock" | "drugExpiring" | "todayLabOrders" | "pendingLabResults";
 
 interface StatDef {
   key: StatKey;
@@ -60,6 +62,8 @@ const ALL_STATS: StatDef[] = [
   { key: "drugValuation",       label: "Эмийн нөөц (үнэлгээ)",  icon: Pill,         tone: "text-cyan-600 bg-cyan-50", format: "mnt" },
   { key: "drugLowStock",        label: "Дуусаж буй эм",        icon: AlertTriangle, tone: "text-amber-600 bg-amber-50" },
   { key: "drugExpiring",        label: "Хугацаа дуусах цуврал", icon: CalendarX2,   tone: "text-rose-600 bg-rose-50" },
+  { key: "todayLabOrders",      label: "Өнөөдрийн шинжилгээ",   icon: FlaskConical, tone: "text-violet-600 bg-violet-50" },
+  { key: "pendingLabResults",   label: "Хариу хүлээгдэж буй",   icon: Clock,        tone: "text-amber-600 bg-amber-50" },
 ];
 
 const ROLE_STATS: Record<Role, StatKey[]> = {
@@ -68,6 +72,7 @@ const ROLE_STATS: Record<Role, StatKey[]> = {
   reception: ["totalPatients", "todayAppointments", "waitingPatients", "todayRevenue"],
   doctor:    ["todayTreatments", "todayAppointments", "waitingPatients", "todayVisits"],
   nurse:     ["todayTreatments", "waitingPatients", "todayVisits", "totalPatients"],
+  lab:       ["todayLabOrders", "pendingLabResults", "totalPatients"],
 };
 
 /* ─── Role quick-action definitions ────────────────────────────────── */
@@ -84,7 +89,9 @@ const QUICK_ACTIONS: ActionDef[] = [
   { href: "/queue",          label: "Дараалал",       icon: ListOrdered,  roles: ["admin", "doctor", "nurse"] },
   { href: "/treatment-tasks", label: "Эмчилгээний ToDo", icon: ClipboardCheck, roles: ["admin", "doctor", "nurse"] },
   { href: "/billing/new",    label: "Нэхэмжлэл",     icon: Receipt,      roles: ["admin", "reception"] },
-  { href: "/patients",       label: "Өвчтөнгүүд",    icon: Users,        roles: ["nurse"] },
+  { href: "/patients",       label: "Өвчтөнгүүд",    icon: Users,        roles: ["nurse", "lab"] },
+  { href: "/lab/orders/new", label: "Шинэ шинжилгээ", icon: FlaskConical, roles: ["lab", "doctor"] },
+  { href: "/lab",            label: "Шинжилгээ",     icon: FlaskConical, roles: ["lab"] },
   { href: "/settings",       label: "Тохиргоо",      icon: Settings,     roles: ["admin"] },
   { href: "/users",          label: "Хэрэглэгчид",   icon: ShieldCheck,  roles: ["admin"] },
 ];
@@ -242,6 +249,7 @@ const ROLE_DESCRIPTION: Record<Role, string> = {
   reception: "Өвчтөн бүртгэл, цаг захиалга, нэхэмжлэл",
   doctor:    "Үзлэг, өвчтөний мэдээлэл, EMR",
   nurse:     "Дараалал болон үзлэгийн туслалцаа",
+  lab:       "Лабораторийн шинжилгээ, хариу оруулах",
 };
 
 /* ─── Main dashboard ─────────────────────────────────────────────────── */

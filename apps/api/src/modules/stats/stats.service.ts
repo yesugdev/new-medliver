@@ -8,6 +8,7 @@ import { EmrService } from "../emr/emr.service";
 import { InvoicesService } from "../billing/invoices.service";
 import { DrugsService } from "../drugs/drugs.service";
 import { TreatmentTaskService } from "../treatment-tasks/treatment-task.service";
+import { LabService } from "../lab/lab.service";
 
 @Injectable()
 export class StatsService {
@@ -18,6 +19,7 @@ export class StatsService {
     private readonly invoices: InvoicesService,
     private readonly drugs: DrugsService,
     private readonly treatmentTasks: TreatmentTaskService,
+    private readonly lab: LabService,
   ) {}
 
   async dashboard(): Promise<DashboardStats> {
@@ -27,7 +29,7 @@ export class StatsService {
 
     const [
       totalPatients, todayAppt, todayRev, todayVisits, newWeek,
-      totalRev, todayTreat, drugReport,
+      totalRev, todayTreat, drugReport, todayLabOrders, pendingLabResults,
     ] = await Promise.all([
       this.patientModel.countDocuments({}),
       this.appointments.countToday(),
@@ -37,6 +39,8 @@ export class StatsService {
       this.invoices.totalRevenue(),
       this.treatmentTasks.countToday(),
       this.drugs.reports(),
+      this.lab.countTodayOrders(),
+      this.lab.countPendingResults(),
     ]);
 
     return {
@@ -51,6 +55,8 @@ export class StatsService {
       drugValuation: drugReport.totalValuation,
       drugLowStock: drugReport.lowStock.length,
       drugExpiring: drugReport.expiringSoon.length + drugReport.expired.length,
+      todayLabOrders,
+      pendingLabResults,
     };
   }
 }

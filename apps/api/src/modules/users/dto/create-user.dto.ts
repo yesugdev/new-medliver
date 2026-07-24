@@ -2,14 +2,13 @@ import { PartialType } from "@nestjs/mapped-types";
 import {
   IsBoolean,
   IsEmail,
-  IsEnum,
+  IsIn,
   IsOptional,
   IsString,
   MaxLength,
   MinLength,
 } from "class-validator";
-
-const ROLES = ["admin", "manager", "doctor", "nurse", "reception"] as const;
+import { ALL_ROLES, type Role } from "@his/shared";
 
 export class CreateUserDto {
   @IsEmail({}, { message: "Имэйл буруу байна" })
@@ -25,8 +24,8 @@ export class CreateUserDto {
   @MaxLength(100)
   fullName!: string;
 
-  @IsEnum(ROLES, { message: "Role буруу" })
-  role!: (typeof ROLES)[number];
+  @IsIn(ALL_ROLES, { message: "Role буруу" })
+  role!: Role;
 
   @IsOptional()
   @IsString()
@@ -36,7 +35,7 @@ export class CreateUserDto {
 
 export class UpdateUserDto {
   @IsOptional() @IsString() @MinLength(2) @MaxLength(100) fullName?: string;
-  @IsOptional() @IsEnum(ROLES) role?: (typeof ROLES)[number];
+  @IsOptional() @IsIn(ALL_ROLES) role?: Role;
   @IsOptional() @IsString() @MaxLength(20) phone?: string;
   @IsOptional() @IsBoolean() isActive?: boolean;
 }
@@ -48,7 +47,7 @@ export class ResetPasswordDto {
 }
 
 export class ListUsersDto {
-  @IsOptional() @IsEnum(ROLES) role?: (typeof ROLES)[number];
+  @IsOptional() @IsIn(ALL_ROLES) role?: Role;
   @IsOptional() @IsString() search?: string;
 }
 

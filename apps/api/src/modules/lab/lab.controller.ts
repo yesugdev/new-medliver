@@ -21,7 +21,7 @@ export class LabTestsController {
   constructor(private readonly svc: LabService) {}
 
   @Get()
-  @Roles(ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE, ROLES.MANAGER, ROLES.RECEPTION)
+  @Roles(ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE, ROLES.MANAGER, ROLES.RECEPTION, ROLES.LAB)
   list(@Query("all") all?: string) {
     return this.svc.listTests(all === "true");
   }
@@ -56,32 +56,32 @@ export class LabOrdersController {
   constructor(private readonly svc: LabService) {}
 
   @Get()
-  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.LAB)
   list(@Query() query: ListOrdersDto, @CurrentUser() user: AuthUser) {
     return this.svc.listOrders(query, user);
   }
 
   @Get(":id")
-  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.LAB)
   get(@Param("id") id: string) {
     return this.svc.getOrder(id);
   }
 
   @Post()
-  @Roles(ROLES.ADMIN, ROLES.DOCTOR)
+  @Roles(ROLES.ADMIN, ROLES.DOCTOR, ROLES.LAB)
   create(@Body() dto: CreateLabOrderDto, @CurrentUser() user: AuthUser) {
     return this.svc.createOrder(dto, user);
   }
 
   /** Захиалга үүсгэлгүйгээр шууд хариу оруулах */
   @Post("quick")
-  @Roles(ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE)
+  @Roles(ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE, ROLES.LAB)
   quickResult(@Body() dto: QuickResultDto, @CurrentUser() user: AuthUser) {
     return this.svc.quickResult(dto, user);
   }
 
   @Patch(":id/results")
-  @Roles(ROLES.ADMIN, ROLES.DOCTOR)
+  @Roles(ROLES.ADMIN, ROLES.DOCTOR, ROLES.LAB)
   recordResults(
     @Param("id") id: string,
     @Body() dto: RecordResultsDto,
@@ -91,7 +91,7 @@ export class LabOrdersController {
   }
 
   @Patch(":id/cancel")
-  @Roles(ROLES.ADMIN, ROLES.DOCTOR)
+  @Roles(ROLES.ADMIN, ROLES.DOCTOR, ROLES.LAB)
   cancel(@Param("id") id: string, @CurrentUser() user: AuthUser) {
     return this.svc.cancelOrder(id, user);
   }

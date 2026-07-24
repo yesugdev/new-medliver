@@ -30,7 +30,7 @@ export class PatientsController {
   ) {}
 
   @Get()
-  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION, ROLES.DOCTOR, ROLES.NURSE)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION, ROLES.DOCTOR, ROLES.NURSE, ROLES.LAB)
   list(@Query() query: ListPatientsDto) {
     return this.patients.list(query);
   }
@@ -42,7 +42,7 @@ export class PatientsController {
   }
 
   @Get(":id")
-  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION, ROLES.DOCTOR, ROLES.NURSE)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.RECEPTION, ROLES.DOCTOR, ROLES.NURSE, ROLES.LAB)
   get(@Param("id") id: string) {
     return this.patients.getById(id);
   }

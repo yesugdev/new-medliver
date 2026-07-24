@@ -146,7 +146,7 @@ function QuickOrderForm({ patientId, onDone }: { patientId: string; onDone: () =
 export function PatientLabOrders({ patientId }: { patientId: string }) {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const canOrder = user && (user.role === "admin" || user.role === "doctor");
+  const canOrder = user && ["admin", "doctor", "lab"].includes(user.role);
 
   const [showForm, setShowForm] = useState(false);
   const [statusFilter, setStatusFilter] = useState("");

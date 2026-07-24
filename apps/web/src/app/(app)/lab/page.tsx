@@ -93,7 +93,7 @@ export default function LabPage() {
       toast({ title: "Алдаа", description: extractApiError(e), variant: "destructive" }),
   });
 
-  const canCreate = user && ["admin","doctor"].includes(user.role);
+  const canCreate = user && ["admin","doctor","lab"].includes(user.role);
   const isAdmin   = user?.role === "admin";
 
   return (

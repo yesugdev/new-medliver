@@ -377,7 +377,7 @@ export default function LabOrderDetailPage() {
       toast({ title: "Алдаа", description: extractApiError(e), variant: "destructive" }),
   });
 
-  const canEdit = user && ["admin","doctor"].includes(user.role);
+  const canEdit = user && ["admin","doctor","lab"].includes(user.role);
   const isAdmin = user?.role === "admin";
   const normallyEditable =
     !!canEdit &&

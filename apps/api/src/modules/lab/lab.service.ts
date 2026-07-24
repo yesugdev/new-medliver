@@ -205,6 +205,24 @@ export class LabService {
     return this.testToShared(doc);
   }
 
+  /** Dashboard — өнөөдөр захиалагдсан order-ын тоо */
+  async countTodayOrders(): Promise<number> {
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    return this.orderModel.countDocuments({ orderedAt: { $gte: start } });
+  }
+
+  /** Dashboard — хариу хүлээгдэж буй тестийн (item) тоо */
+  async countPendingResults(): Promise<number> {
+    const res = await this.orderModel.aggregate([
+      { $match: { deletedAt: null, status: { $in: ["ordered", "partial"] } } },
+      { $unwind: "$items" },
+      { $match: { "items.status": "ordered" } },
+      { $count: "n" },
+    ]);
+    return res[0]?.n ?? 0;
+  }
+
   /** Дараалсан id жагсаалтын дагуу sortOrder-ыг 0..n болгож дахин бичнэ */
   async reorderTests(ids: string[], actor: AuthUser): Promise<{ success: true }> {
     const ops = ids.map((id, index) => ({

@@ -8,8 +8,9 @@ import {
   ChevronUp, ChevronDown,
 } from "lucide-react";
 import {
-  type LabCategory, type LabTest,
+  type LabCategory, type LabTest, ROLES,
 } from "@his/shared";
+import { AuthGuard } from "@/components/auth-guard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -140,7 +141,7 @@ function TestForm({
 }
 
 /* ─── Page ──────────────────────────────────────────────────────────── */
-export default function LabCatalogPage() {
+function LabCatalogInner() {
   const { toast } = useToast();
   const qc = useQueryClient();
 
@@ -449,5 +450,14 @@ export default function LabCatalogPage() {
         </div>
       )}
     </div>
+  );
+}
+
+/* ─── Config хуудас — зөвхөн admin ─────────────────────────────────── */
+export default function LabCatalogPage() {
+  return (
+    <AuthGuard allowedRoles={[ROLES.ADMIN]}>
+      <LabCatalogInner />
+    </AuthGuard>
   );
 }

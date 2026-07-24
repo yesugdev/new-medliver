@@ -15,4 +15,8 @@ export interface DashboardStats {
   drugLowStock: number;
   /** Дуусах/дууссан цувралын тоо */
   drugExpiring: number;
+  /** Өнөөдөр захиалагдсан лабораторийн шинжилгээ (order) */
+  todayLabOrders: number;
+  /** Хариу хүлээгдэж буй шинжилгээ (item) */
+  pendingLabResults: number;
 }

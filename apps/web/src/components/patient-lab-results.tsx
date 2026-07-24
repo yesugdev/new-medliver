@@ -366,7 +366,7 @@ export function PatientLabResults({ patientId }: { patientId: string }) {
   const activeCat = active && categories.includes(active) ? active : categories[0] ?? null;
 
   const user = useAuthStore((s) => s.user);
-  const canRecord = !!user && ["admin", "doctor", "nurse"].includes(user.role);
+  const canRecord = !!user && ["admin", "doctor", "nurse", "lab"].includes(user.role);
   const [entryOpen, setEntryOpen] = useState(false);
   // Хариу оруулах form-д зөвхөн ИДЭВХТЭЙ шинжилгээ (catalog нь матрицад
   // хуучин хариу харуулахын тулд идэвхгүйг ч агуулдаг).

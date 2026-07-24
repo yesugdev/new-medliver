@@ -6,6 +6,7 @@ import { EmrModule } from "../emr/emr.module";
 import { BillingModule } from "../billing/billing.module";
 import { DrugsModule } from "../drugs/drugs.module";
 import { TreatmentTaskModule } from "../treatment-tasks/treatment-task.module";
+import { LabModule } from "../lab/lab.module";
 import { StatsService } from "./stats.service";
 import { StatsController } from "./stats.controller";
 
@@ -17,6 +18,7 @@ import { StatsController } from "./stats.controller";
     BillingModule,
     DrugsModule,
     TreatmentTaskModule,
+    LabModule,
   ],
   controllers: [StatsController],
   providers: [StatsService],

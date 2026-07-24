@@ -34,13 +34,13 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/dashboard",
     label: "Хяналтын самбар",
     icon: LayoutDashboard,
-    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION],
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION, ROLES.LAB],
   },
   {
     href: "/patients",
     label: "Өвчтөн",
     icon: Users,
-    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION],
+    roles: [ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION, ROLES.LAB],
   },
   {
     href: "/appointments",
@@ -64,7 +64,7 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/lab",
     label: "Шинжилгээ",
     icon: FlaskConical,
-    roles: [ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE, ROLES.MANAGER],
+    roles: [ROLES.ADMIN, ROLES.DOCTOR, ROLES.NURSE, ROLES.MANAGER, ROLES.LAB],
   },
   {
     href: "/emr",

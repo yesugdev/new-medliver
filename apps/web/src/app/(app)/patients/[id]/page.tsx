@@ -68,6 +68,7 @@ export default function PatientDetailPage({
 }) {
   const { id } = use(params);
   const role = useAuthStore((s) => s.user?.role);
+  const isLab = role === "lab"; // лаборант — зөвхөн шинжилгээний хэсэг
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", id],
     queryFn: () => getPatient(id),
@@ -112,12 +113,14 @@ export default function PatientDetailPage({
             </div>
           </div>
         </div>
-        <Button asChild variant="outline">
-          <Link href={`/patients/${patient.id}/edit`}>
-            <Pencil className="h-4 w-4" />
-            Засах
-          </Link>
-        </Button>
+        {!isLab && (
+          <Button asChild variant="outline">
+            <Link href={`/patients/${patient.id}/edit`}>
+              <Pencil className="h-4 w-4" />
+              Засах
+            </Link>
+          </Button>
+        )}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
@@ -251,32 +254,36 @@ export default function PatientDetailPage({
         </div>
       </div>
 
-      <PatientVitals patientId={patient.id} />
+      {!isLab && (
+        <>
+          <PatientVitals patientId={patient.id} />
 
-      <CollapsibleSection
-        title="Зовуурь"
-        icon={<Stethoscope className="h-4 w-4" />}
-      >
-        <PatientComplaints patientId={patient.id} />
-      </CollapsibleSection>
+          <CollapsibleSection
+            title="Зовуурь"
+            icon={<Stethoscope className="h-4 w-4" />}
+          >
+            <PatientComplaints patientId={patient.id} />
+          </CollapsibleSection>
 
-      <CollapsibleSection
-        title="Онош"
-        icon={<ClipboardList className="h-4 w-4" />}
-      >
-        <PatientDiagnoses patientId={patient.id} />
-      </CollapsibleSection>
+          <CollapsibleSection
+            title="Онош"
+            icon={<ClipboardList className="h-4 w-4" />}
+          >
+            <PatientDiagnoses patientId={patient.id} />
+          </CollapsibleSection>
 
-      <PatientMedicalHistory patientId={patient.id} />
+          <PatientMedicalHistory patientId={patient.id} />
 
-      <PatientTreatment patientId={patient.id} />
+          <PatientTreatment patientId={patient.id} />
 
-      <CollapsibleSection
-        title="Багажийн шинжилгээ"
-        icon={<FlaskConical className="h-4 w-4" />}
-      >
-        <PatientInstrumentalExams patientId={patient.id} />
-      </CollapsibleSection>
+          <CollapsibleSection
+            title="Багажийн шинжилгээ"
+            icon={<FlaskConical className="h-4 w-4" />}
+          >
+            <PatientInstrumentalExams patientId={patient.id} />
+          </CollapsibleSection>
+        </>
+      )}
 
       <CollapsibleSection
         title="Шинжилгээ"
@@ -292,14 +299,16 @@ export default function PatientDetailPage({
         <PatientLabOrders patientId={patient.id} />
       </CollapsibleSection>
 
-      <CollapsibleSection
-        title="Үзлэг"
-        icon={<FileText className="h-4 w-4" />}
-      >
-        <PatientVisits patientId={patient.id} />
-      </CollapsibleSection>
+      {!isLab && (
+        <CollapsibleSection
+          title="Үзлэг"
+          icon={<FileText className="h-4 w-4" />}
+        >
+          <PatientVisits patientId={patient.id} />
+        </CollapsibleSection>
+      )}
 
-      {role !== "nurse" && (
+      {role !== "nurse" && !isLab && (
         <CollapsibleSection
           title="Нэхэмжлэл"
           icon={<Receipt className="h-4 w-4" />}
