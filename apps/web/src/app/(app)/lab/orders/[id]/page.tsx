@@ -379,13 +379,15 @@ export default function LabOrderDetailPage() {
 
   const canEdit = user && ["admin","doctor","lab"].includes(user.role);
   const isAdmin = user?.role === "admin";
+  // Хадгалсан хариуг дахин засах ("Засах" override) — admin болон лаборант
+  const canOverrideEdit = !!user && ["admin", "lab"].includes(user.role);
   const normallyEditable =
     !!canEdit &&
     !!order &&
     (order.status === "ordered" || order.status === "partial");
-  const isEditable = normallyEditable || (isAdmin && adminEditMode);
+  const isEditable = normallyEditable || (canOverrideEdit && adminEditMode);
   const showAdminEditToggle =
-    isAdmin && !!order && order.status !== "cancelled" && !normallyEditable;
+    canOverrideEdit && !!order && order.status !== "cancelled" && !normallyEditable;
 
   const handleDeleteResult = (item: LabOrderItem) => {
     if (confirm("Та энэ шинжилгээний хариуг устгахдаа итгэлтэй байна уу? Энэ үйлдлийг буцаах боломжгүй.")) {
@@ -580,7 +582,7 @@ export default function LabOrderDetailPage() {
                 Засах
               </Button>
             )}
-            {isAdmin && adminEditMode && (
+            {canOverrideEdit && adminEditMode && (
               <Button size="sm" variant="ghost" onClick={() => setAdminEditMode(false)}>
                 Болих
               </Button>
