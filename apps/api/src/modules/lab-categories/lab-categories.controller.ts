@@ -12,7 +12,7 @@ export class LabCategoriesController {
   constructor(private readonly svc: LabCategoriesService) {}
 
   @Get()
-  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION, ROLES.LAB)
   list(@Query("all") all?: string) {
     return this.svc.list(all === "true");
   }

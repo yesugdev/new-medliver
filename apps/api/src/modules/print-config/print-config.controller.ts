@@ -40,7 +40,7 @@ export class PrintConfigController {
   constructor(private readonly svc: PrintConfigService) {}
 
   @Get()
-  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION)
+  @Roles(ROLES.ADMIN, ROLES.MANAGER, ROLES.DOCTOR, ROLES.NURSE, ROLES.RECEPTION, ROLES.LAB)
   get() {
     return this.svc.get();
   }
