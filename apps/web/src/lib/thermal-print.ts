@@ -1,4 +1,5 @@
-import type { Invoice, PrintConfig, PaymentMethod } from "@his/shared";
+import qrcode from "qrcode-generator";
+import type { Invoice, PrintConfig, PaymentMethod, EbarimtReceipt } from "@his/shared";
 import { PAYMENT_METHOD_LABELS_MN } from "@his/shared";
 import { formatMnt } from "./format";
 import { formatDateTimeMn } from "./utils";
@@ -148,4 +149,74 @@ export function printThermalInvoice(
   `;
 
   openThermalPrintWindow(`Баримт ${inv.invoiceNumber}`, widthKey, body);
+}
+
+/** qrData → төвд байрлах QR кодын SVG (thermal-д тохирсон хэмжээтэй) */
+function qrSvg(data: string): string {
+  const qr = qrcode(0, "M");
+  qr.addData(data);
+  qr.make();
+  // cellSize 3px — 58мм цаасанд ч багтана; svg нь өргөнөөрөө scale хийгдэнэ
+  return qr.createSvgTag({ cellSize: 3, margin: 2, scalable: true });
+}
+
+/**
+ * И-Баримт (ebarimt) — PosAPI-гаас гаргасан баримтыг XPrinter (58/76/80мм)
+ * хэмжээгээр хэвлэнэ: сугалааны дугаар + QR кодтой.
+ */
+export function printEbarimtReceipt(
+  receipt: EbarimtReceipt,
+  inv: Invoice,
+  config?: Partial<PrintConfig>,
+  widthKey: ThermalWidthKey = "80",
+) {
+  const orgName    = config?.orgName || "MEDLIVER";
+  const orgAddress = config?.orgAddress;
+  const orgPhone   = config?.orgPhone;
+
+  const itemRows = inv.items.map((it) => `
+    <div class="t-item-name">${it.name}</div>
+    <div class="t-row">
+      <span>${it.quantity} x ${formatMnt(it.unitPrice)}</span>
+      <span>${formatMnt(it.total)}</span>
+    </div>
+  `).join("");
+
+  const qrBlock = receipt.qrData
+    ? `<div class="t-center" style="margin:6px 0">
+         <div style="width:70%;max-width:180px;margin:0 auto">${qrSvg(receipt.qrData)}</div>
+       </div>`
+    : "";
+
+  const body = `
+    <div class="t-center t-bold t-title">${orgName}</div>
+    ${orgAddress ? `<div class="t-center t-small">${orgAddress}</div>` : ""}
+    ${orgPhone   ? `<div class="t-center t-small">Утас: ${orgPhone}</div>` : ""}
+    <div class="t-divider"></div>
+    <div class="t-center t-bold">И-БАРИМТ</div>
+    <div class="t-divider"></div>
+
+    <div class="t-row"><span>Нэхэмжлэл №</span><span class="mono">${inv.invoiceNumber}</span></div>
+    <div class="t-item-name t-small">ДДТД: <span class="mono">${receipt.ebarimtId}</span></div>
+    <div class="t-row"><span>Огноо</span><span>${receipt.date}</span></div>
+    <div class="t-divider"></div>
+
+    ${itemRows}
+    <div class="t-divider"></div>
+
+    ${receipt.totalVAT > 0 ? `<div class="t-row"><span>НӨАТ</span><span>${formatMnt(receipt.totalVAT)}</span></div>` : ""}
+    <div class="t-divider-solid"></div>
+    <div class="t-row t-bold t-total"><span>НИЙТ ДҮН</span><span>${formatMnt(receipt.totalAmount)}</span></div>
+    <div class="t-divider"></div>
+
+    ${receipt.lottery ? `
+    <div class="t-center t-small">Сугалааны дугаар</div>
+    <div class="t-center t-bold t-title">${receipt.lottery}</div>` : ""}
+    ${qrBlock}
+
+    <div class="t-center t-small">ebarimt.mn</div>
+    <div class="t-center t-small">Хэвлэсэн: ${new Date().toLocaleString("mn-MN")}</div>
+  `;
+
+  openThermalPrintWindow(`И-Баримт ${inv.invoiceNumber}`, widthKey, body);
 }

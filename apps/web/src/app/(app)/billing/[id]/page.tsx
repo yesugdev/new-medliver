@@ -25,7 +25,8 @@ import { getHospitalConfig } from "@/lib/hospital-config-api";
 import { getPatient } from "@/lib/patients-api";
 import { getPrintConfig } from "@/lib/print-config-api";
 import { openPrintWindow, buildPatientMeta, cfg, type PrintPatientInfo } from "@/lib/print-utils";
-import { printThermalInvoice, THERMAL_WIDTH_LABELS, type ThermalWidthKey } from "@/lib/thermal-print";
+import { printThermalInvoice, printEbarimtReceipt, THERMAL_WIDTH_LABELS, type ThermalWidthKey } from "@/lib/thermal-print";
+import { getEbarimtConfig, getEbarimtReceipt, createEbarimtReceipt } from "@/lib/ebarimt-api";
 import { INVOICE_TONE } from "@/lib/status-tones";
 import { formatMnt } from "@/lib/format";
 import { formatDateTimeMn } from "@/lib/utils";
@@ -154,6 +155,31 @@ export default function InvoiceDetailPage({
     if (printConfig?.receiptWidth) setReceiptWidth(printConfig.receiptWidth);
   }, [printConfig?.receiptWidth]);
 
+  /* ── И-Баримт (ebarimt) ── */
+  const { data: ebarimtConfig } = useQuery({
+    queryKey: ["ebarimt-config"],
+    queryFn: getEbarimtConfig,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+
+  const { data: ebarimtReceipt } = useQuery({
+    queryKey: ["ebarimt-receipt", id],
+    queryFn: () => getEbarimtReceipt(id),
+    enabled: !!ebarimtConfig?.enabled,
+  });
+
+  const ebarimtMut = useMutation({
+    mutationFn: () => createEbarimtReceipt(id),
+    onSuccess: (receipt) => {
+      toast({ title: "И-Баримт амжилттай үүслээ", variant: "success" });
+      qc.setQueryData(["ebarimt-receipt", id], receipt);
+      if (inv) printEbarimtReceipt(receipt, inv, printConfig, receiptWidth);
+    },
+    onError: (err) =>
+      toast({ title: "И-Баримт алдаа", description: extractApiError(err), variant: "destructive" }),
+  });
+
   const payMut = useMutation({
     mutationFn: () => recordPayment(id, { amount, method }),
     onSuccess: () => {
@@ -233,6 +259,10 @@ export default function InvoiceDetailPage({
     bloodType: patientData.bloodType,
     attendingDoctorName: patientData.attendingDoctorName,
   } : undefined;
+
+  // И-Баримт: тохиргоо идэвхтэй + нэхэмжлэл бүрэн төлөгдсөн үед
+  const showEbarimt = !!ebarimtConfig?.enabled && inv.status === "paid";
+  const canIssueEbarimt = user && ["admin", "reception"].includes(user.role);
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -349,6 +379,42 @@ export default function InvoiceDetailPage({
                 {vatMut.isPending && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
               </div>
               <p className="text-xs text-muted-foreground">Зөвхөн төлбөр төлөгдөөгүй үед өөрчилж болно.</p>
+            </CardContent></Card>
+          )}
+          {showEbarimt && (
+            <Card><CardContent className="p-4 space-y-2">
+              <div className="text-sm font-semibold">И-Баримт</div>
+              {ebarimtReceipt ? (
+                <>
+                  <div className="text-xs text-muted-foreground space-y-0.5">
+                    <div>ДДТД: <span className="font-mono">{ebarimtReceipt.ebarimtId}</span></div>
+                    {ebarimtReceipt.lottery && (
+                      <div>Сугалаа: <span className="font-mono font-semibold text-foreground">{ebarimtReceipt.lottery}</span></div>
+                    )}
+                    <div>Огноо: {ebarimtReceipt.date}</div>
+                  </div>
+                  <Button
+                    variant="outline" className="w-full" size="sm"
+                    onClick={() => printEbarimtReceipt(ebarimtReceipt, inv, printConfig, receiptWidth)}
+                  >
+                    <Printer className="h-4 w-4" />
+                    И-Баримт хэвлэх
+                  </Button>
+                </>
+              ) : canIssueEbarimt ? (
+                <Button
+                  className="w-full" size="sm"
+                  onClick={() => ebarimtMut.mutate()}
+                  disabled={ebarimtMut.isPending}
+                >
+                  {ebarimtMut.isPending
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <Printer className="h-4 w-4" />}
+                  И-Баримт гаргах
+                </Button>
+              ) : (
+                <p className="text-xs text-muted-foreground">И-Баримт гаргаагүй байна.</p>
+              )}
             </CardContent></Card>
           )}
           {(canCancel || canDelete) && (

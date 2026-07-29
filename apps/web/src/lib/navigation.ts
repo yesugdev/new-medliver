@@ -17,6 +17,7 @@ import {
   Activity,
   BarChart3,
   SlidersHorizontal,
+  ReceiptText,
   type LucideIcon,
 } from "lucide-react";
 import type { Role } from "@his/shared";
@@ -148,6 +149,12 @@ export const NAV_ITEMS: NavItem[] = [
     href: "/settings/reports-access",
     label: "Тайлангийн хандалт",
     icon: BarChart3,
+    roles: [ROLES.ADMIN],
+  },
+  {
+    href: "/settings/ebarimt",
+    label: "И-Баримт",
+    icon: ReceiptText,
     roles: [ROLES.ADMIN],
   },
 ];
