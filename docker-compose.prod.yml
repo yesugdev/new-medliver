@@ -51,6 +51,42 @@ services:
     networks:
       - his-net
 
+  # ── WordPress DB (medliver.mn) — HIS-ээс тусдаа wp-net дээр ────
+  wp-db:
+    image: mariadb:11
+    container_name: wp-db
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: ${WP_DB_ROOT_PASS}
+      MARIADB_DATABASE: wordpress
+      MARIADB_USER: wpuser
+      MARIADB_PASSWORD: ${WP_DB_PASS}
+    volumes:
+      - wp-db-data:/var/lib/mysql
+    networks:
+      - wp-net
+
+  # ── WordPress (medliver.mn) ────────────────────────────────────
+  wordpress:
+    image: wordpress:6-php8.3-apache
+    container_name: wordpress
+    restart: always
+    environment:
+      WORDPRESS_DB_HOST: wp-db:3306
+      WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_DB_USER: wpuser
+      WORDPRESS_DB_PASSWORD: ${WP_DB_PASS}
+      # Reverse proxy-гийн ард HTTPS гэдгээ мэдэхгүй бол redirect loop үүсдэг
+      WORDPRESS_CONFIG_EXTRA: |
+        if (isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) && $$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') { $$_SERVER['HTTPS'] = 'on'; }
+    volumes:
+      - wp-data:/var/www/html
+      - ./wordpress/uploads.ini:/usr/local/etc/php/conf.d/uploads.ini:ro
+    depends_on:
+      - wp-db
+    networks:
+      - wp-net
+
   # ── Nginx Reverse Proxy ────────────────────────────────────────
   nginx:
     image: nginx:1.25-alpine
@@ -63,15 +99,23 @@ services:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
       - ./nginx/maintenance.html:/usr/share/nginx/html/maintenance.html:ro
       - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
     depends_on:
       - api
       - web
     networks:
       - his-net
+      - wp-net
 
 networks:
   his-net:
     driver: bridge
+  # WordPress-ийг HIS-ийн дотоод сүлжээнээс тусгаарлана —
+  # wordpress контейнер his-mongo/his-api руу хандаж ЧАДАХГҮЙ.
+  wp-net:
+    driver: bridge
 
 volumes:
   mongo-data:
+  wp-data:
+  wp-db-data:
