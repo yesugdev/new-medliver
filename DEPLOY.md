@@ -675,6 +675,37 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
   up -d --build --no-deps web
 ```
 
+### ⚠️ `docker restart his-nginx`-ийг бүү ашигла — `--force-recreate` ашигла
+
+**Чухал:** `web`/`api`-г rebuild хийсний дараа nginx-ийг зөвхөн
+`docker restart his-nginx`-ээр сэргээхийг оролдож болохгүй. `restart`
+нь зөвхөн контейнер доторх **процессыг** дахин эхлүүлдэг — контейнерийн
+**сүлжээний хавсралт (network attachment)-ыг шинэчилдэггүй**. Хэрэв
+`his-net` сүлжээ ямар нэг шалтгаанаар (жишээ нь өөр Docker stack
+сервер дээр зэрэгцээ ажиллаж байгаа тул subnet зөрчилдөх, эсвэл
+сүлжээ дахин үүссэн) шинэ IP муж авбал, зөвхөн `restart` хийсэн nginx
+хуучин, устсан network object дээрээ үлдэж, шинэ `web` контейнерт
+огт хүрч чадахгүй болно (лог дээр
+`connect() failed (111: Connection refused)` гарна, харин
+maintenance хуудас 200 буцаадаг тул гаднаас "ажиллаж байна" мэт
+харагдана — бодит сайт ачаалахгүй).
+
+**Зөв арга** — `web`/`api`/`nginx`-г бүгдийг `--force-recreate`-ээр
+хамт дахин үүсгэж, гурвуулаа **ижил, одоогийн** сүлжээнд заавал
+холбогдуулах:
+```bash
+cd /opt/his
+docker compose -f docker-compose.prod.yml --env-file .env.prod \
+  up -d --force-recreate web api nginx
+```
+
+Шалгах — бүгд ижил subnet дээр байх ёстой (сүлжээний нэрийг
+`docker network ls`-ээс олно, ихэвчлэн `<хавтасны нэр>_his-net`):
+```bash
+docker network inspect <project>_his-net \
+  --format '{{range .Containers}}{{.Name}} {{.IPv4Address}}{{println}}{{end}}'
+```
+
 ### "Систем шинэчлэгдэж байна" хуудас (deploy-ийн үед)
 
 `api`/`web` container rebuild хийгдэж байх богино хугацаанд (~15-20 мин
@@ -687,8 +718,8 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod \
 Зөвхөн энэ тохиргоог **анх удаа суулгах** үед (эсвэл `nginx/default.conf`
 өөрчлөгдсөн үед) nginx-г дахин ачаалах шаардлагатай:
 ```bash
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-deps nginx
-docker restart his-nginx
+docker compose -f docker-compose.prod.yml --env-file .env.prod \
+  up -d --force-recreate --no-deps nginx
 ```
 
 ---
@@ -756,6 +787,25 @@ docker ps | grep his-api
 docker ps | grep his-web
 docker logs his-api --tail 50
 ```
+
+### Сайт ачаалахгүй байгаа ч бүх container "Up" — nginx хуучин IP руу холбогдож байна
+
+Шинж тэмдэг: `docker ps` бүх container эрүүл гэж харуулна, гэвч сайт
+нээгдэхгүй (эсвэл зөвхөн "Систем шинэчлэгдэж байна" хуудас байнга
+харагдана). `docker logs his-nginx --tail 40` дотор:
+```
+connect() failed (111: Connection refused) while connecting to upstream,
+upstream: "http://172.19.0.3:3000/"
+```
+
+Шалтгаан: `his-nginx` контейнер **өөр (хуучин) network object** дээр
+үлдсэн, `his-web`-ийн одоогийн IP-тэй өөр subnet-д байна (доогуур
+логоос харагдах upstream IP-г `docker logs his-web --tail 5`-ийн
+`Network: http://...` мөртэй харьцуул — subnet зөрвөл яг энэ асуудал).
+
+Засвар: [дээрх "`--force-recreate` ашигла" хэсгийг үз](#14-шинэчлэх-update) —
+`web`, `api`, `nginx`-г хамт `--force-recreate`-ээр дахин үүсгэнэ.
+Зөвхөн `docker restart his-nginx` **энэ асуудлыг засахгүй**.
 
 ### Дискний зай дүүрэв
 
