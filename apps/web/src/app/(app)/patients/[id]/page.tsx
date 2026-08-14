@@ -2,14 +2,17 @@
 
 import { use, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
-import { ArrowLeft, Loader2, Pencil, Phone, Mail, MapPin, ChevronDown, FlaskConical, FileText, Receipt, Stethoscope, ClipboardList } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, Loader2, Pencil, Trash2, Phone, Mail, MapPin, ChevronDown, FlaskConical, FileText, Receipt, Stethoscope, ClipboardList } from "lucide-react";
 import { GENDER_LABELS_MN } from "@his/shared";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { getPatient } from "@/lib/patients-api";
+import { useToast } from "@/components/ui/toast";
+import { getPatient, deletePatient } from "@/lib/patients-api";
 import { useAuthStore } from "@/stores/auth-store";
 import { calculateAge, formatDateMn, cn } from "@/lib/utils";
+import { extractApiError } from "@/lib/api";
 import { PatientVisits } from "@/components/patient-visits";
 import { PatientInvoices } from "@/components/patient-invoices";
 import { PatientVitals } from "@/components/patient-vitals";
@@ -67,11 +70,26 @@ export default function PatientDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
+  const qc = useQueryClient();
+  const { toast } = useToast();
   const role = useAuthStore((s) => s.user?.role);
   const isLab = role === "lab"; // лаборант — зөвхөн шинжилгээний хэсэг
+  const isAdmin = role === "admin";
   const { data: patient, isLoading } = useQuery({
     queryKey: ["patient", id],
     queryFn: () => getPatient(id),
+  });
+
+  const deleteMut = useMutation({
+    mutationFn: () => deletePatient(id),
+    onSuccess: () => {
+      toast({ title: "Өвчтөн устгагдлаа", variant: "success" });
+      qc.invalidateQueries({ queryKey: ["patients"] });
+      router.replace("/patients");
+    },
+    onError: (e) =>
+      toast({ title: "Алдаа", description: extractApiError(e), variant: "destructive" }),
   });
 
   if (isLoading) {
@@ -113,14 +131,30 @@ export default function PatientDetailPage({
             </div>
           </div>
         </div>
-        {!isLab && (
-          <Button asChild variant="outline">
-            <Link href={`/patients/${patient.id}/edit`}>
-              <Pencil className="h-4 w-4" />
-              Засах
-            </Link>
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {!isLab && (
+            <Button asChild variant="outline">
+              <Link href={`/patients/${patient.id}/edit`}>
+                <Pencil className="h-4 w-4" />
+                Засах
+              </Link>
+            </Button>
+          )}
+          {isAdmin && (
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (confirm(`"${patient.lastName} ${patient.firstName}" (${patient.patientCode}) өвчтөнг устгах уу? Энэ үйлдлийг буцаах боломжтой (админаас сэргээх).`)) {
+                  deleteMut.mutate();
+                }
+              }}
+              disabled={deleteMut.isPending}
+            >
+              {deleteMut.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Устгах
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
