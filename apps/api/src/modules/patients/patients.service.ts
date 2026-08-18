@@ -45,12 +45,33 @@ export class PatientsService {
     };
   }
 
+  /**
+   * Дараагийн кодыг хамгийн сүүлийн кодоос +1 хийж тооцоолно (count-ээр БИШ).
+   *
+   * ⚠️ Устгагдсан өвчтөнийг ЗААВАЛ тооцоонд оруулна: устгалт нь soft-delete
+   * (deletedAt) тул бичлэг DB-д үлдэж, patientCode-ийн unique index-ийг
+   * "эзэлсэн" хэвээр байдаг. Mongoose-ийн soft-delete middleware нь
+   * countDocuments/findOne-оос устгагдсаныг хасдаг тул түүнийг тойрч
+   * native collection ашиглав — эс тэгвэл устгасны дараа дугаар буурч,
+   * аль хэдийн ашиглагдсан кодыг дахин олгож E11000 алдаа өгнө.
+   */
   private async generatePatientCode(): Promise<string> {
     const year = new Date().getFullYear();
-    const count = await this.model.countDocuments({
-      patientCode: { $regex: `^P${year}-` },
-    });
-    return `P${year}-${String(count + 1).padStart(5, "0")}`;
+    const prefix = `P${year}-`;
+    const last = await this.model.collection
+      .find({ patientCode: { $regex: `^${prefix}` } })
+      .sort({ patientCode: -1 })
+      .limit(1)
+      .next();
+    const seq = last
+      ? parseInt(String(last.patientCode).replace(prefix, ""), 10) + 1
+      : 1;
+    return `${prefix}${String(seq).padStart(5, "0")}`;
+  }
+
+  private isDuplicatePatientCode(err: unknown): boolean {
+    return !!err && typeof err === "object" && (err as any).code === 11000
+      && !!(err as any).keyPattern && "patientCode" in (err as any).keyPattern;
   }
 
   async create(dto: CreatePatientDto, actor: AuthUser): Promise<SharedPatient> {
@@ -61,14 +82,24 @@ export class PatientsService {
       throw new ConflictException("Энэ регистрийн дугаартай өвчтөн бүртгэлтэй байна");
     }
 
-    const patientCode = await this.generatePatientCode();
-    const created = await this.model.create({
+    const base = {
       ...dto,
       registerNumber: dto.registerNumber.toUpperCase(),
       birthDate: new Date(dto.birthDate),
-      patientCode,
       createdBy: actor.id,
-    });
+    };
+
+    // Зэрэг үүсгэх (race) үед давхардвал дугаарыг дахин тооцоолж оролдоно
+    let created;
+    for (let attempt = 0; ; attempt++) {
+      const patientCode = await this.generatePatientCode();
+      try {
+        created = await this.model.create({ ...base, patientCode });
+        break;
+      } catch (err) {
+        if (!this.isDuplicatePatientCode(err) || attempt >= 4) throw err;
+      }
+    }
 
     await this.audit.record({
       actorId: actor.id,
@@ -76,7 +107,7 @@ export class PatientsService {
       action: "patient.create",
       resource: "patient",
       resourceId: created._id.toString(),
-      meta: { patientCode },
+      meta: { patientCode: created.patientCode },
     });
 
     return this.toShared(created);
